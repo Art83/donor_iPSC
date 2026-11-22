@@ -519,11 +519,11 @@ for (a in c(2, 3, 5, 10, 20, 50, 100)) {
       res <- exact_icc_ci(a, k, icc)
       ci_data <- rbind(ci_data, data.frame(
         n_donors  = a,
-        k         = k,
-        true_icc  = icc,
-        ci_lower  = res$lower,
-        ci_upper  = res$upper,
-        ci_width  = res$width
+        k = k,
+        true_icc = icc,
+        ci_lower = res$lower,
+        ci_upper = res$upper,
+        ci_width = res$width
       ))
     }
   }
@@ -638,7 +638,95 @@ pC <- pC1 / pC2 +
 ggsave("figC_exact_ci.pdf", pC, width = 11, height = 12, dpi = 300)
 ggsave("figC_exact_ci.png", pC, width = 11, height = 12, dpi = 300)
 
-cat("\nFigure C saved.\n")
+################################################################################
+# PART D: CONCORDANCE ACROSS DONORS
+#
+# A phenotype reproduced in every donor of a small panel is usually read as
+# robust to genetic background. Let pi be the fraction of genetic backgrounds
+# in the population that show the phenotype.
+#
+# D1. If all n donors show it, the exact one-sided 95% lower confidence bound
+#     on pi (Clopper & Pearson, 1934) is
+#         pi_L = alpha^(1/n)
+#     For x of n concordant the bound is qbeta(alpha, x, n - x + 1).
+#
+# D2. Conversely, when the true fraction is pi, all n donors agree with
+#     probability pi^n, so a unanimous small panel is common even when a
+#     substantial share of backgrounds does not show the phenotype.
+#
+################################################################################
+
+cat("\n=== PART D: Concordance across donors ===\n\n")
+
+concordance_lower <- function(x, n, alpha = 0.05) {
+  ifelse(x == 0, 0, qbeta(alpha, x, n - x + 1))
+}
+
+conc_n <- c(1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100)
+
+conc_table <- data.frame(n = conc_n) %>%
+  mutate(
+    all_agree     = concordance_lower(n, n),
+    one_discordant = ifelse(n >= 2, concordance_lower(n - 1, n), NA_real_)
+  )
+
+cat("95% lower bound on the fraction of backgrounds showing the phenotype\n\n")
+cat(sprintf("  %-8s %14s %20s\n", "donors", "all n agree", "n - 1 of n agree"))
+for (i in seq_len(nrow(conc_table))) {
+  r <- conc_table[i, ]
+  cat(sprintf("  %-8d %13.0f%% %19s\n", r$n, r$all_agree * 100,
+              ifelse(is.na(r$one_discordant), "-",
+                     sprintf("%.0f%%", r$one_discordant * 100))))
+}
+
+cat("\nDonors, all concordant, needed to bound the fraction from below:\n")
+for (target in c(0.50, 0.80, 0.90, 0.95)) {
+  cat(sprintf("  at least %2.0f%% of backgrounds: %d donors\n",
+              target * 100, ceiling(log(0.05) / log(target))))
+}
+
+unanimity_grid <- expand.grid(pi = c(0.5, 0.6, 0.7, 0.8, 0.9), n = c(2, 3, 5, 10, 20)) %>%
+  mutate(p_unanimous = pi^n)
+
+cat("\nP(all n donors show the phenotype) when a fraction pi of backgrounds does, %\n\n")
+cat(sprintf("  %-8s %s\n", "pi",
+            paste(sprintf("n=%-5d", c(2, 3, 5, 10, 20)), collapse = " ")))
+for (pv in c(0.5, 0.6, 0.7, 0.8, 0.9)) {
+  r <- unanimity_grid[unanimity_grid$pi == pv, ]
+  cat(sprintf("  %-8s %s\n", paste0(pv * 100, "%"),
+              paste(sprintf("%5.1f  ", r$p_unanimous * 100), collapse = " ")))
+}
+
+conc_long <- conc_table %>%
+  tidyr::pivot_longer(cols = c(all_agree, one_discordant),
+               names_to = "outcome", values_to = "lower") %>%
+  filter(!is.na(lower)) %>%
+  mutate(outcome = factor(outcome, levels = c("all_agree", "one_discordant"),
+                          labels = c("All n donors agree", "n - 1 of n donors agree")))
+
+pD <- ggplot(conc_long, aes(x = n, y = lower, color = outcome, group = outcome)) +
+  annotate("rect", xmin = 3, xmax = 5, ymin = 0, ymax = 1,
+           fill = "grey50", alpha = 0.12) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.2) +
+  scale_x_continuous(trans = "log10", breaks = c(1, 2, 3, 5, 10, 20, 50, 100)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_color_manual(values = c("#264653", "#F4A261")) +
+  labs(
+    title = "What concordance across donors establishes",
+    subtitle = paste0("95% lower bound on the fraction of genetic backgrounds ",
+                      "showing the phenotype."),
+    x = "Donors tested (log scale)",
+    y = "Lower bound on fraction of backgrounds",
+    color = NULL
+  ) +
+  theme_pub
+
+tiff("pics/fig2_genetic_background.tiff", units = "in", res = 300, width = 7, height = 5)
+print(pD)
+dev.off()
+
+
 
 
 ################################################################################

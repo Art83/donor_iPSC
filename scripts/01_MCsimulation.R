@@ -398,6 +398,387 @@ simulate_confounding <- function(n_donors_vec = c(2, 3, 5, 10, 20, 50),
 
 confound_results <- simulate_confounding()
 
+################################################################################
+# SIMULATION 4: Sensitivity to the assumptions of Simulation 1
+#
+# Simulation 1 assumes normal donor effects, normal replicate noise, the same
+# replicate variance in every donor, and six replicates per donor. Each
+# assumption is relaxed in turn, holding the true ICC fixed:
+#
+#   donor_heavy    donor effects from a t distribution with 3 d.f.
+#   donor_skewed   donor effects from a centred exponential (skewness 2)
+#   donor_bimodal  20% of donors shifted, as for a common variant of large
+#                  effect (two-component normal mixture)
+#   resid_heavy    replicate noise from a t distribution with 3 d.f.
+#   resid_unequal  replicate variance differs between donors (log-normal
+#                  multiplier, mean 1, log-SD 0.75)
+#
+# All draws are scaled to the same variance as the baseline, so the true ICC is
+# unchanged and only the shape differs. Each scenario is run at six and at
+# three replicates per donor.
+#
+# Reported for each cell:
+#   power of the F-test, or type I error when the true ICC is 0
+#   central 95% range of the ICC estimate, and how often it is 0
+#   coverage of the exact 95% confidence interval (Thomas & Hultquist, 1978;
+#   script 02 Part C), which is derived under the baseline assumptions
+################################################################################
+
+cat("\n=== SIMULATION 4: Sensitivity to distributional assumptions ===\n")
+
+SENS_SCENARIOS <- c(
+  normal = "Normal (baseline)",
+  donor_heavy = "Heavy-tailed donor effects",
+  donor_skewed = "Skewed donor effects",
+  donor_bimodal = "Bimodal donor effects",
+  resid_heavy = "Heavy-tailed replicate noise",
+  resid_unequal = "Unequal variance between donors"
+)
+SENS_ICCS <- c(0, TRUE_ICCS)
+SENS_K <- c(6, 3)
+SENS_N_NULL <- 20000   # iterations when the true ICC is 0 (type I error)
+
+# Zero-mean, unit-variance draws of a given shape
+draw_unit <- function(n, shape) {
+  switch(shape,
+         normal = rnorm(n),
+         heavy = rt(n, df = 3) / sqrt(3),
+         skewed = rexp(n) - 1,
+         bimodal = {
+           shifted <- rbinom(n, 1, 0.2)
+           0.5 * rnorm(n) + sqrt(0.75 / 0.16) * (shifted - 0.2)
+         })
+}
+
+simulate_sensitivity_cell <- function(scenario, true_icc, a, k, n_sims,
+                                      resid_sd = RESID_SD) {
+  donor_sd <- sqrt((true_icc * resid_sd^2) / (1 - true_icc))
+  donor_shape <- switch(scenario,
+                        donor_heavy = "heavy", donor_skewed = "skewed",
+                        donor_bimodal = "bimodal", "normal")
+  resid_shape <- if (scenario == "resid_heavy") "heavy" else "normal"
+  
+  u   <- draw_unit(a * n_sims, donor_shape) * donor_sd      # (a, n_sims)
+  eps <- draw_unit(k * a * n_sims, resid_shape) * resid_sd  # (k, a, n_sims)
+  
+  if (scenario == "resid_unequal") {
+    s <- 0.75
+    var_mult <- exp(rnorm(a * n_sims, -s^2 / 2, s))         # mean 1
+    eps <- eps * rep(sqrt(var_mult), each = k)
+  }
+  
+  y_matrix <- matrix(eps + rep(u, each = k), nrow = a * k, ncol = n_sims)
+  res <- anova_icc_fast(y_matrix, k = k, a = a)
+  
+  # Exact CI for the ICC from the observed F
+  df1 <- a - 1
+  df2 <- a * (k - 1)
+  f_l <- res$f_stat / qf(0.975, df1, df2)
+  f_u <- res$f_stat * qf(0.975, df2, df1)
+  ci_l <- (f_l - 1) / (f_l + k - 1)
+  ci_u <- (f_u - 1) / (f_u + k - 1)
+  
+  data.frame(
+    scenario = scenario,
+    true_icc = true_icc,
+    n_donors = a,
+    k  = k,
+    reject_rate = mean(res$p_value < 0.05),
+    median_icc = median(res$icc),
+    q025_icc = unname(quantile(res$icc, 0.025)),
+    q975_icc = unname(quantile(res$icc, 0.975)),
+    pct_icc_zero = mean(res$icc == 0),
+    ci_coverage = mean(ci_l <= true_icc & true_icc <= ci_u),
+    ci_width = median(pmin(ci_u, 1) - pmax(ci_l, 0))
+  )
+}
+
+sens_grid <- expand.grid(scenario = names(SENS_SCENARIOS), true_icc = SENS_ICCS,
+                         n_donors = N_DONORS, k = SENS_K,
+                         stringsAsFactors = FALSE)
+
+sens_results <- do.call(rbind, lapply(seq_len(nrow(sens_grid)), function(i) {
+  g <- sens_grid[i, ]
+  simulate_sensitivity_cell(g$scenario, g$true_icc, g$n_donors, g$k,
+                            n_sims = if (g$true_icc == 0) SENS_N_NULL else N_SIMS)
+}))
+
+sens_results <- sens_results %>%
+  mutate(
+    scenario_label = factor(SENS_SCENARIOS[scenario], levels = SENS_SCENARIOS),
+    k_label = factor(paste0(k, " replicates per donor"),
+                     levels = paste0(SENS_K, " replicates per donor")),
+    n_label = factor(paste0("n=", n_donors), levels = paste0("n=", N_DONORS))
+  )
+
+# Change relative to the normal baseline in the same ICC x n x k cell
+sens_vs_base <- sens_results %>%
+  left_join(sens_results %>% filter(scenario == "normal") %>%
+              select(true_icc, n_donors, k,
+                     base_reject = reject_rate, base_cover = ci_coverage,
+                     base_q975 = q975_icc),
+            by = c("true_icc", "n_donors", "k")) %>%
+  mutate(d_reject = reject_rate - base_reject,
+         d_cover = ci_coverage - base_cover,
+         d_q975 = q975_icc - base_q975)
+
+print_sens_table <- function(value, icc, k_val, title, digits = 1) {
+  cat(sprintf("\n%s (true ICC = %.0f%%, %d replicates per donor)\n", title, icc * 100, k_val))
+  cat(sprintf("  %-32s %s\n", "", paste(sprintf("n=%-5d", N_DONORS), collapse = " ")))
+  for (s in names(SENS_SCENARIOS)) {
+    r <- sens_results[sens_results$scenario == s & sens_results$true_icc == icc &
+                        sens_results$k == k_val, ]
+    r <- r[match(N_DONORS, r$n_donors), ]
+    cat(sprintf("  %-32s %s\n", SENS_SCENARIOS[s],
+                paste(sprintf(paste0("%6.", digits, "f "), r[[value]] * 100), collapse = " ")))
+  }
+}
+
+for (k_val in SENS_K) {
+  print_sens_table("reject_rate", 0.20, k_val, "Power of the F-test, %")
+  print_sens_table("q975_icc", 0.20, k_val, "Upper limit of the central 95% range of the ICC estimate, %")
+  print_sens_table("pct_icc_zero", 0.20, k_val, "ICC estimated at zero, %")
+  print_sens_table("ci_coverage", 0.20, k_val, "Coverage of the exact 95% CI, %")
+  print_sens_table("reject_rate", 0, k_val, "Type I error of the F-test, %", digits = 2)
+}
+
+cat("\nLargest change from the normal baseline across all ICC, n and k:\n")
+for (s in setdiff(names(SENS_SCENARIOS), "normal")) {
+  d <- sens_vs_base[sens_vs_base$scenario == s, ]
+  dp <- d[d$true_icc > 0, ]
+  d0 <- d[d$true_icc == 0, ]
+  cat(sprintf("  %-32s power %+5.1f to %+5.1f pts | type I error %.1f%% to %.1f%% | CI coverage %.1f%% to %.1f%%\n",
+              SENS_SCENARIOS[s],
+              min(dp$d_reject) * 100, max(dp$d_reject) * 100,
+              min(d0$reject_rate) * 100, max(d0$reject_rate) * 100,
+              min(dp$ci_coverage) * 100, max(dp$ci_coverage) * 100))
+}
+
+# Figure: the four metrics at a true ICC of 20%, by scenario
+sens_fig_n <- c(3, 5, 10, 20)
+sens_metric_levels <- c("Power to detect\ndonor variance",
+                        "ICC estimate,\ncentral 95% range",
+                        "Coverage of the\nexact 95% CI",
+                        "Type I error\n(true ICC = 0)")
+sens_main <- sens_results %>% filter(true_icc == 0.20, n_donors %in% sens_fig_n)
+sens_null <- sens_results %>% filter(true_icc == 0, n_donors %in% sens_fig_n)
+
+sens_fig_data <- bind_rows(
+  sens_main %>% transmute(scenario_label, k_label, n_label,
+                          metric = sens_metric_levels[1],
+                          x = reject_rate, xmin = NA_real_, xmax = NA_real_),
+  sens_main %>% transmute(scenario_label, k_label, n_label,
+                          metric = sens_metric_levels[2],
+                          x = median_icc, xmin = q025_icc, xmax = q975_icc),
+  sens_main %>% transmute(scenario_label, k_label, n_label,
+                          metric = sens_metric_levels[3],
+                          x = ci_coverage, xmin = NA_real_, xmax = NA_real_),
+  sens_null %>% transmute(scenario_label, k_label, n_label,
+                          metric = sens_metric_levels[4],
+                          x = reject_rate, xmin = NA_real_, xmax = NA_real_)
+) %>%
+  mutate(metric = factor(metric, levels = sens_metric_levels),
+         scenario_label = factor(scenario_label, levels = rev(SENS_SCENARIOS)),
+         n_label = factor(n_label, levels = paste0("n=", sens_fig_n)))
+
+sens_ref <- data.frame(
+  metric = factor(sens_metric_levels[2:4], levels = sens_metric_levels),
+  ref = c(0.20, 0.95, 0.05)
+)
+
+pS4 <- ggplot(sens_fig_data, aes(y = scenario_label, color = n_label)) +
+  geom_vline(data = sens_ref, aes(xintercept = ref),
+             linetype = "dashed", color = "grey50") +
+  geom_linerange(aes(xmin = xmin, xmax = xmax), na.rm = TRUE, linewidth = 0.8,
+                 position = position_dodge(width = 0.7), orientation = "y") +
+  geom_point(aes(x = x), size = 2.2,
+             position = position_dodge(width = 0.7)) +
+  facet_grid(k_label ~ metric, scales = "free_x") +
+  scale_x_continuous(labels = scales::percent) +
+  scale_color_manual(values = palette_n[paste0("n=", sens_fig_n)]) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(
+    title = "Sensitivity of the donor-variance results to distributional assumptions",
+    subtitle = paste0("True ICC = 20%. Dashed lines mark the true ICC, the nominal ",
+                      "95% coverage and the nominal 5% error rate."),
+    x = NULL, y = NULL, color = "Donors"
+  ) +
+  theme_pub +
+  theme(panel.grid.major.y = element_blank(),
+        panel.spacing.x = unit(1.2, "lines"))
+
+
+
+tiff("pics/figS_simulation_sensitivity.tiff", units = "in", res = 300, width = 12, height = 6)
+print(pS4)
+dev.off()
+
+write.csv(sens_results %>% select(scenario, true_icc, n_donors, k, reject_rate,
+                                  median_icc, q025_icc, q975_icc, pct_icc_zero,
+                                  ci_coverage, ci_width),
+          "tables/tableS4_sensitivity.csv", row.names = FALSE)
+
+
+################################################################################
+# SIMULATION 5: Clone level in the nested hierarchy
+#
+# Simulation 3 has donor -> batch -> organoid. Independent iPSC clones from one
+# donor differ from each other, which adds a level:
+#   donor -> clone -> differentiation batch -> organoid
+#
+# Three designs with 12 organoids per donor are compared:
+#   A  1 clone, 1 batch,   12 organoids   clone and batch both confounded with donor
+#   B  1 clone, 2 batches, 6 organoids    clone confounded with donor (Simulation 3 design)
+#   C  2 clones, 2 batches, 3 organoids   all levels separable
+#
+# Expected mean squares, balanced nested random-effects model with cl clones,
+# b batches per clone and m organoids per batch:
+#   E[MS_donor] = s2_e + m s2_b + m b s2_c + m b cl s2_d
+#   E[MS_clone] = s2_e + m s2_b + m b s2_c
+#   E[MS_batch] = s2_e + m s2_b
+#   E[MS_within] = s2_e
+# A level with one unit per parent has no degrees of freedom
+################################################################################
+
+cat("\n=== SIMULATION 5: Clone level in the nested hierarchy ===\n")
+
+CLONE_ICC_DONOR <- 0.20
+CLONE_ICC_CLONE <- 0.10
+CLONE_ICC_BATCH <- 0.15
+CLONE_N_SIMS <- 3000
+
+CLONE_DESIGNS <- list(
+  A = list(cl = 1, b = 1, m = 12, label = "1 clone, 1 batch, 12 organoids"),
+  B = list(cl = 1, b = 2, m = 6,  label = "1 clone, 2 batches, 6 organoids"),
+  C = list(cl = 2, b = 2, m = 3,  label = "2 clones, 2 batches, 3 organoids")
+)
+
+simulate_clone_design <- function(a, cl, b, m, n_sims = CLONE_N_SIMS,
+                                  icc_donor = CLONE_ICC_DONOR,
+                                  icc_clone = CLONE_ICC_CLONE,
+                                  icc_batch = CLONE_ICC_BATCH) {
+  # total variance 1
+  sd_d <- sqrt(icc_donor); sd_c <- sqrt(icc_clone); sd_b <- sqrt(icc_batch)
+  sd_e <- sqrt(1 - icc_donor - icc_clone - icc_batch)
+  
+  # y has dimensions (m, b, cl, a, n_sims)
+  donor <- rnorm(a * n_sims, 0, sd_d)
+  clone <- rnorm(cl * a * n_sims, 0, sd_c)
+  batch <- rnorm(b * cl * a * n_sims, 0, sd_b)
+  y <- array(rnorm(m * b * cl * a * n_sims, 0, sd_e), c(m, b, cl, a, n_sims)) +
+    rep(batch, each = m) + rep(clone, each = m * b) + rep(donor, each = m * b * cl)
+  
+  batch_means <- colMeans(y, dims = 1)             # (b, cl, a, n_sims)
+  clone_means <- colMeans(batch_means, dims = 1)   # (cl, a, n_sims)
+  donor_means <- colMeans(clone_means, dims = 1)   # (a, n_sims)
+  grand_means <- colMeans(donor_means)             # (n_sims)
+  
+  ss_within <- colSums((y - rep(batch_means, each = m))^2, dims = 4)
+  ss_batch <- m * colSums((batch_means - rep(clone_means, each = b))^2, dims = 3)
+  ss_clone <- m * b * colSums((clone_means - rep(donor_means, each = cl))^2, dims = 2)
+  ss_donor <- m * b * cl * colSums((donor_means - rep(grand_means, each = a))^2)
+  
+  ms_within <- ss_within / (a * cl * b * (m - 1))
+  ms_donor <- ss_donor / (a - 1)
+  # a level without replication takes the mean square of the level below it
+  ms_batch <- if (b > 1) ss_batch / (a * cl * (b - 1)) else ms_within
+  ms_clone <- if (cl > 1) ss_clone / (a * (cl - 1)) else ms_batch
+  
+  s2_e <- ms_within
+  s2_b <- if (b > 1) pmax((ms_batch - ms_within) / m, 0) else rep(0, n_sims)
+  s2_c <- if (cl > 1) pmax((ms_clone - ms_batch) / (m * b), 0) else rep(0, n_sims)
+  s2_d <- pmax((ms_donor - ms_clone) / (m * b * cl), 0)
+  total <- s2_d + s2_c + s2_b + s2_e
+  
+  # test of the donor level against the level below it
+  df_denom <- if (cl > 1) a * (cl - 1) else if (b > 1) a * (b - 1) else a * (m - 1)
+  p_donor <- pf(ms_donor / ms_clone, a - 1, df_denom, lower.tail = FALSE)
+  
+  data.frame(
+    n_donors = a,
+    donor_share_median = median(s2_d / total),
+    donor_share_mean = mean(s2_d / total),
+    donor_share_q025 = unname(quantile(s2_d / total, 0.025)),
+    donor_share_q975 = unname(quantile(s2_d / total, 0.975)),
+    donor_share_zero = mean(s2_d == 0),
+    clone_share_mean = if (cl > 1) mean(s2_c / total) else NA_real_,
+    clone_share_zero = if (cl > 1) mean(s2_c == 0) else NA_real_,
+    batch_share_mean = if (b > 1) mean(s2_b / total) else NA_real_,
+    power_donor = mean(p_donor < 0.05)
+  )
+}
+
+# What the "donor" component estimates in expectation under each design
+clone_expected <- c(
+  A = CLONE_ICC_DONOR + CLONE_ICC_CLONE + CLONE_ICC_BATCH,
+  B = CLONE_ICC_DONOR + CLONE_ICC_CLONE,
+  C = CLONE_ICC_DONOR
+)
+
+clone_results <- do.call(rbind, lapply(names(CLONE_DESIGNS), function(dn) {
+  d <- CLONE_DESIGNS[[dn]]
+  r <- do.call(rbind, lapply(N_DONORS, function(a)
+    simulate_clone_design(a, d$cl, d$b, d$m)))
+  r$design <- dn
+  r$design_label <- d$label
+  r$expected_donor_share <- clone_expected[[dn]]
+  r
+}))
+
+cat(sprintf("True shares: donor %.0f%%, clone %.0f%%, batch %.0f%%, organoid %.0f%%\n",
+            CLONE_ICC_DONOR * 100, CLONE_ICC_CLONE * 100, CLONE_ICC_BATCH * 100,
+            (1 - CLONE_ICC_DONOR - CLONE_ICC_CLONE - CLONE_ICC_BATCH) * 100))
+for (dn in names(CLONE_DESIGNS)) {
+  cat(sprintf("\nDesign %s: %s. The donor component estimates %.0f%% in expectation.\n",
+              dn, CLONE_DESIGNS[[dn]]$label, clone_expected[[dn]] * 100))
+  cat(sprintf("  %-8s %-26s %-10s %-12s %-12s %s\n", "donors",
+              "donor share, median [95%]", "at zero", "clone share", "batch share",
+              "power, donor"))
+  r <- clone_results[clone_results$design == dn, ]
+  for (i in seq_len(nrow(r))) {
+    cat(sprintf("  %-8d %5.1f%% [%4.1f-%5.1f]        %5.1f%%     %-12s %-12s %5.1f%%\n",
+                r$n_donors[i], r$donor_share_median[i] * 100,
+                r$donor_share_q025[i] * 100, r$donor_share_q975[i] * 100,
+                r$donor_share_zero[i] * 100,
+                ifelse(is.na(r$clone_share_mean[i]), "confounded",
+                       sprintf("%.1f%%", r$clone_share_mean[i] * 100)),
+                ifelse(is.na(r$batch_share_mean[i]), "confounded",
+                       sprintf("%.1f%%", r$batch_share_mean[i] * 100)),
+                r$power_donor[i] * 100))
+  }
+}
+
+clone_fig_data <- clone_results %>%
+  mutate(design_label = factor(design_label,
+                               levels = sapply(CLONE_DESIGNS, function(d) d$label)),
+         n_factor = factor(n_donors, levels = N_DONORS))
+
+pS5 <- ggplot(clone_fig_data, aes(x = n_factor, color = design_label)) +
+  geom_hline(yintercept = CLONE_ICC_DONOR, linetype = "dashed", color = "grey50") +
+  geom_linerange(aes(ymin = donor_share_q025, ymax = donor_share_q975),
+                 linewidth = 0.9, position = position_dodge(width = 0.6)) +
+  geom_point(aes(y = donor_share_median), size = 2.5,
+             position = position_dodge(width = 0.6)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_color_manual(values = c("#E63946", "#F4A261", "#264653")) +
+  labs(
+    title = "Estimated donor share of variance with a clone level",
+    subtitle = sprintf(paste0("Median and central 95%% range. True shares: donor %.0f%% (dashed), ",
+                              "clone %.0f%%, batch %.0f%%. 12 organoids per donor."),
+                       CLONE_ICC_DONOR * 100, CLONE_ICC_CLONE * 100, CLONE_ICC_BATCH * 100),
+    x = "Number of donors",
+    y = "Estimated donor share of variance",
+    color = "Design per donor"
+  ) +
+  guides(color = guide_legend(ncol = 1)) +
+  theme_pub
+
+
+tiff("pics/figS_donors.tiff", units = "in", res = 300, width = 7, height = 5)
+print(pS5)
+dev.off()
+write.csv(clone_results, "tables/tableS5_clone_level.csv", row.names = FALSE)
+
 cat("\n=== Generating Figures ===\n")
 
 # ---------- FIGURE 1: Power curves across empirical ICC range ----------

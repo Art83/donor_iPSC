@@ -22,6 +22,17 @@
 #   sigma_int^2 > 0:   F = MS_DC / MS_E ~ F(a-1, 2a(k-1))
 #   sigma_donor^2 > 0:F = MS_D  / MS_DC ~ F(a-1, a-1)
 #
+# Direction of response (unanumity). The true treatment effect in donor d is
+#   beta + v_{d,treated} - v_{d,control}  ~  N(beta, 2 * sigma_int^2)
+# so the share of donors in the population who truly respond in the opposite
+# direction to the mean is
+#   q = pnorm(-beta / (sqrt(2) * sigma_int))
+#
+# simulator separates three events:
+#   observed unanimity   all a observed per-donor effects share a sign
+#   true unanimity       all a sampled donors truly share a sign
+#   masked discordance   observed unanimity although a sampled donor truly
+#                        responds the other way (replicate noise hides it)
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -117,7 +128,15 @@ twoway_anova_fast <- function(a, k, beta,
   prop_same <- pmax(n_pos, a - n_pos) / a
   all_same_sign <- (n_pos == 0L) | (n_pos == a)
   
+  # The same diagnostic on the true per-donor effects of the sampled donors
+  true_effect <- beta + v[, 2L, , drop = TRUE] - v[, 1L, , drop = TRUE]
+  if (a == 1L) true_effect <- matrix(true_effect, nrow = 1L)
+  n_pos_true <- colSums(true_effect > 0)
+  all_same_true <- (n_pos_true == 0L) | (n_pos_true == a)
+  
   list(
+    all_same_true = all_same_true,
+    masked_discordance = all_same_sign & !all_same_true,
     p_cond= p_cond,
     p_interaction = p_int,
     p_donor = p_don,
@@ -190,11 +209,58 @@ for (i in seq_len(nrow(param_grid))) {
     median_sigma_int = median(r$sigma_int_hat),
     mean_sigma_int = mean(r$sigma_int_hat),
     pct_zero_int = mean(r$sigma_int_hat < 1e-8),
-    pct_all_same = mean(r$all_same_sign)
+    pct_all_same = mean(r$all_same_sign),
+    # population share of donors truly responding against the mean effect
+    frac_opposite = pnorm(-p$beta / (sqrt(2) * p$sigma_int)),
+    pct_all_same_true = mean(r$all_same_true),
+    pct_masked = mean(r$masked_discordance),
+    # closed form for observed unanimity, used as a check on the simulation
+    pct_all_same_expected = {
+      q_obs <- pnorm(-p$beta / sqrt(2 * p$sigma_int^2 + 2 * p$sigma_res^2 / p$k))
+      (1 - q_obs)^p$a + q_obs^p$a
+    }
   )
 }
 summary_tbl <- tibble::as_tibble(bind_rows(rows))
-print(summary_tbl, n = Inf)
+print(summary_tbl, n = Inf, width = Inf)
+write.csv(summary_tbl, "tables/unanimity_summary.csv")
+
+# -----------------------------------------------------------------------------
+# Direction of response: unanimity against the true share of opposite responders
+# -----------------------------------------------------------------------------
+cat("\n=== Unanimous panels and the true share of opposite responders ===\n")
+cat(sprintf("Largest gap between simulated and closed-form unanimity: %.1f percentage points\n\n",
+            100 * max(abs(summary_tbl$pct_all_same - summary_tbl$pct_all_same_expected))))
+
+sign_tbl <- summary_tbl %>%
+  filter(sigma_int > 0) %>%
+  arrange(frac_opposite, a)
+
+cat(sprintf("  %-5s %-9s %-22s %s\n", "beta", "sigma_int",
+            "donors truly opposite", "P(all donors same sign), observed, at a = 3, 5, 10*, 20"))
+for (key in unique(paste(sign_tbl$beta, sign_tbl$sigma_int))) {
+  s <- sign_tbl[paste(sign_tbl$beta, sign_tbl$sigma_int) == key, ]
+  q_obs <- pnorm(-s$beta[1] / sqrt(2 * s$sigma_int[1]^2 + 2 / s$k[1]))
+  cat(sprintf("  %-5.1f %-9.1f %20.1f%%   %5.1f%%  %5.1f%%  %5.1f%%  %5.1f%%\n",
+              s$beta[1], s$sigma_int[1], 100 * s$frac_opposite[1],
+              100 * s$pct_all_same[s$a == 3], 100 * s$pct_all_same[s$a == 5],
+              100 * ((1 - q_obs)^10 + q_obs^10),
+              100 * s$pct_all_same[s$a == 20]))
+}
+cat("  * a = 10 is not in the simulation grid and is given in closed form\n")
+
+cat("\nObserved unanimity split by what the sampled donors truly did (a = 3 and 5)\n")
+# masked discordance: looks unanimous, a sampled donor truly responds the other way
+# false discordance:  looks discordant, all sampled donors truly respond the same way
+cat(sprintf("  %-5s %-9s %-3s %10s %18s %20s %19s\n", "beta", "sigma_int", "a",
+            "observed", "truly unanimous", "masked discordance", "false discordance"))
+for (i in which(sign_tbl$a %in% c(3, 5))) {
+  s <- sign_tbl[i, ]
+  cat(sprintf("  %-5.1f %-9.1f %-3d %9.1f%% %17.1f%% %19.1f%% %18.1f%%\n",
+              s$beta, s$sigma_int, s$a, 100 * s$pct_all_same,
+              100 * s$pct_all_same_true, 100 * s$pct_masked,
+              100 * (s$pct_all_same_true - (s$pct_all_same - s$pct_masked))))
+}
 
 # -----------------------------------------------------------------------------
 # Plots
@@ -265,10 +331,32 @@ print(fig_sign)
 dev.off()
 
 
-ggsave("fig_I1_power_main_effect.png",  fig_main, width = 7.5, height = 4.8, dpi = 160)
-ggsave("fig_I2_power_heterogeneity.png", fig_het,  width = 7.5, height = 4.8, dpi = 160)
-ggsave("fig_I3_sigma_int_zero_rate.png", fig_zero, width = 7.5, height = 4.8, dpi = 160)
-ggsave("fig_I4_direction_concordance.png", fig_sign, width = 7.5, height = 4.8, dpi = 160)
+# Each condition is labelled by the share of donors who truly respond in the
+# opposite direction, which is what makes a unanimous panel informative or not.
+sign_fig_data <- summary_tbl %>%
+  filter(sigma_int > 0) %>%
+  mutate(opp_label = sprintf("%.0f%%", 100 * frac_opposite)) %>%
+  arrange(frac_opposite)
+sign_fig_data$opp_label <- factor(sign_fig_data$opp_label,
+                                  levels = unique(sign_fig_data$opp_label))
+
+fig_sign_new <- ggplot(sign_fig_data,
+                   aes(x = a, y = pct_all_same, colour = opp_label, group = opp_label)) +
+  annotate("rect", xmin = 3, xmax = 5, ymin = 0, ymax = 1,
+           fill = "grey50", alpha = 0.12) +
+  geom_line(linewidth = 0.9) + geom_point(size = 2) +
+  scale_x_continuous(trans = "log10", breaks = unique(summary_tbl$a)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_colour_manual(values = c("#FDD0A2", "#FDAE6B", "#FD8D3C",
+                                 "#E6550D", "#A63603", "#5C1F02")) +
+  labs(title = "Probability all sampled donors respond in the same direction",
+       x = "Number of donors (log scale)", y = "P(all donors have same sign)",
+       colour = "Donors truly responding\nin the opposite direction") +
+  theme(legend.position = "right")
+tiff("pics/figI4_new.tiff", units = "in", res = 300, width = 6, height = 5)
+print(fig_sign_new)
+dev.off()
+
 
 
 

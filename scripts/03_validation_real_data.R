@@ -6,18 +6,21 @@
 #
 # Strategy:
 #   1. Map lines to donors using metadata
-#   2. For donors with multiple lines, average within donor to get one
-#      expression profile per donor (avoids inflating within-donor variance)
-#   3. Compute gene-wise ICC from the full dataset = "truth"
+#   2. Compute gene-wise ICC from the 51 donors with two lines = reference
+#   3. Check how much of that reference is shared batch rather than donor
+#      (STEP 3b: negative control and within-batch ICC)
 #   4. Repeatedly subsample to n = 2, 3, 5, 10, 20, 50 donors
 #   5. Re-estimate gene-wise ICC from subsample
-#   6. Compare distribution of subsampled estimates to truth
+#   6. Compare distribution of subsampled estimates to the reference
 #
 # This is the "real data" validation
 #
-# INPUT FILES (downloaded from eLife):
-#   - metadata file: Figure 1—source data 1 (the .xls with donor mapping)
-#   - expression file: Figure 1—source data 2 (the .xls with log expression)
+# Subsampling pool. A donor contributes to the ICC only if it has two lines.
+# Only 51 of the 151 donors do. Drawing from all 151 means most small draws
+# hold one replicated donor or none, so the estimate rests on fewer donors
+# than the stated n and the result is specific to this dataset's missing
+# replicates. SUBSAMPLE_POOL = "replicated" draws from the 51, so every sampled
+# donor has two lines, as in a designed study. "all" makes it draw feom 151.
 #
 ################################################################################
 
@@ -31,6 +34,9 @@ set.seed(42)
 
 META_FILE <- "elife_data/elife-57390-fig1-data1-v3.xls"   # sample metadata
 EXPR_FILE <- "elife_data/elife-57390-fig1-data2-v3.xls"   # expression matrix
+
+SUBSAMPLE_POOL <- "replicated"   # "replicated" (51 two-line donors) or "all" (151)
+N_CONTROL_PAIRINGS <- 20         # random pairings for the batch negative control
 
 meta <- read.delim(META_FILE, row.names = 1, check.names = FALSE,
                    stringsAsFactors = FALSE)
@@ -46,9 +52,10 @@ line_names <- colnames(expr)
 meta$line <- meta[["Public name"]]
 meta$donor <- meta[["Donor"]]
 
-# Match expression columns to donors
+# Match expression columns to donors (batch is the batch column of the source
+# metadata, the only processing batch it records)
 line_donor_map <- meta %>%
-  select(line, donor) %>%
+  select(line, donor, batch) %>%
   filter(line %in% line_names) %>%
   distinct()
 
@@ -188,14 +195,161 @@ cat(sprintf("ICC > 50%%: %d genes (%.1f%%)\n",
 
 
 # ==============================================================================
-# STEP 4: Subsampling: repeatedly draw n donors, re-estimate ICC
+# STEP 3b: Batch structure of the replicate lines
+#
+# The reference ICC counts everything two lines of a donor share as donor-level
+# variance. If both lines were processed in the same batch, shared batch is
+# counted as donor. Three checks:
+#   1   how many replicated donors have both lines in one batch
+#   2  negative control: pair unrelated lines that share a batch and treat
+#         each pair as a "donor". Its ICC, compared with random unrelated
+#         pairs, is variance due to batch alone.
+#   3 within-batch donor ICC: donors nested in batch, with the between-donor
+#         mean square taken around the batch mean so that batch drops out.
+# ==============================================================================
+
+cat("\n=== Batch structure of replicate lines ===\n")
+
+# do the lines of a donor share a batch
+batches_per_donor <- multi_lines %>%
+  group_by(donor) %>%
+  summarize(n_batches = n_distinct(batch), .groups = "drop")
+same_batch_donors <- batches_per_donor$donor[batches_per_donor$n_batches == 1]
+cat(sprintf("Replicated donors with all lines in one batch: %d of %d\n",
+            length(same_batch_donors), length(multi_line_donors)))
+
+# negative control
+pair_unrelated_within_batch <- function(map) {
+  # Greedy random pairing of lines from different donors inside each batch
+  pairs <- list()
+  for (b in unique(map$batch)) {
+    idx  <- which(map$batch == b)
+    if (length(idx) > 1) idx <- sample(idx)
+    used <- rep(FALSE, length(idx))
+    pid  <- 0
+    for (x in seq_along(idx)) {
+      if (used[x]) next
+      for (y in seq_along(idx)) {
+        if (y <= x || used[y]) next
+        if (map$donor[idx[x]] != map$donor[idx[y]]) {
+          pid <- pid + 1
+          pairs[[length(pairs) + 1]] <- data.frame(
+            line = map$line[idx[c(x, y)]],
+            pseudo_donor = paste(b, pid, sep = "_"))
+          used[c(x, y)] <- TRUE
+          break
+        }
+      }
+    }
+  }
+  do.call(rbind, pairs)
+}
+
+pair_unrelated_at_random <- function(map, n_pairs) {
+  # One line from each of 2 * n_pairs different donors, paired at random
+  d <- sample(unique(map$donor), 2 * n_pairs)
+  l <- sapply(d, function(x) {
+    cand <- map$line[map$donor == x]
+    if (length(cand) > 1) sample(cand, 1) else cand
+  })
+  data.frame(line = l, pseudo_donor = rep(seq_len(n_pairs), each = 2))
+}
+
+# Both controls use as many pairs as there are replicated donors, so their
+# sampling noise matches that of the reference.
+n_control_pairs <- length(multi_line_donors)
+control_same_batch <- matrix(NA_real_, nrow(expr_mat), N_CONTROL_PAIRINGS)
+control_random <- matrix(NA_real_, nrow(expr_mat), N_CONTROL_PAIRINGS)
+for (i in seq_len(N_CONTROL_PAIRINGS)) {
+  p1 <- pair_unrelated_within_batch(line_donor_map)
+  keep <- sample(unique(p1$pseudo_donor), n_control_pairs)
+  p1 <- p1[p1$pseudo_donor %in% keep, ]
+  control_same_batch[, i] <- compute_gene_icc(expr_mat[, p1$line], p1$pseudo_donor)
+  p2 <- pair_unrelated_at_random(line_donor_map, n_control_pairs)
+  control_random[, i] <- compute_gene_icc(expr_mat[, p2$line], p2$pseudo_donor)
+}
+# median over genes and pairings, with the range of per-pairing medians
+control_same_batch_median <- apply(control_same_batch, 2, median)
+control_random_median <- apply(control_random, 2, median)
+
+cat(sprintf("Negative control, unrelated lines sharing a batch (%d pairs, %d pairings): median ICC = %.1f%% [%.1f%%-%.1f%% across pairings]\n",
+            n_control_pairs, N_CONTROL_PAIRINGS,
+            median(control_same_batch) * 100,
+            min(control_same_batch_median) * 100, max(control_same_batch_median) * 100))
+cat(sprintf("Negative control, unrelated lines paired at random (%d pairs, %d pairings): median ICC = %.1f%% [%.1f%%-%.1f%% across pairings]\n",
+            n_control_pairs, N_CONTROL_PAIRINGS,
+            median(control_random) * 100,
+            min(control_random_median) * 100, max(control_random_median) * 100))
+
+# within-batch donor ICC
+compute_gene_icc_within_batch <- function(expr_matrix, donor_ids, batch_ids) {
+  # One-way random-effects ICC with donors nested in batch, all genes at once.
+  # Every line of a donor must sit in one batch. Truncated at 0.
+  d <- factor(donor_ids)
+  fb <- factor(batch_ids)
+  n_genes <- nrow(expr_matrix)
+  n <- as.numeric(table(d))
+  a <- nlevels(d)
+  N <- length(d)
+  stopifnot(all(tapply(as.character(batch_ids), d,
+                       function(x) length(unique(x))) == 1))
+  batch_of_donor <- factor(tapply(as.character(batch_ids), d, function(x) x[1]),
+                           levels = levels(fb))
+  nb <- nlevels(fb)
+  if (a - nb < 1 || N == a) return(rep(NA_real_, n_genes))
+  
+  donor_means <- t(rowsum(t(expr_matrix), d)) / rep(n, each = n_genes)
+  batch_means <- t(rowsum(t(expr_matrix), fb)) /
+    rep(as.numeric(table(fb)), each = n_genes)
+  
+  ss_within <- rowSums((expr_matrix - donor_means[, as.integer(d), drop = FALSE])^2)
+  dev <- donor_means - batch_means[, as.integer(batch_of_donor), drop = FALSE]
+  ss_between <- rowSums(sweep(dev^2, 2, n, "*"))
+  
+  ms_within <- ss_within / (N - a)
+  ms_between <- ss_between / (a - nb)
+  
+  # coefficient of the donor variance in E[MS_between] for the nested design
+  k0 <- (N - sum(tapply(n^2, batch_of_donor, sum) /
+                   tapply(n, batch_of_donor, sum))) / (a - nb)
+  
+  icc <- (ms_between - ms_within) / (ms_between + (k0 - 1) * ms_within)
+  pmax(icc, 0)
+}
+
+# donors with all lines in one batch, in batches holding at least two of them
+nested_lines <- multi_lines %>% filter(donor %in% same_batch_donors)
+donors_per_batch <- nested_lines %>%
+  group_by(batch) %>%
+  summarize(n_d = n_distinct(donor), .groups = "drop")
+nested_lines <- nested_lines %>%
+  filter(batch %in% donors_per_batch$batch[donors_per_batch$n_d >= 2])
+
+within_batch_icc <- compute_gene_icc_within_batch(
+  expr_mat[, nested_lines$line], nested_lines$donor, nested_lines$batch)
+names(within_batch_icc) <- rownames(expr_mat)
+same_donors_icc <- compute_gene_icc(expr_mat[, nested_lines$line], nested_lines$donor)
+
+cat(sprintf("Within-batch donor ICC (%d donors in %d batches): median = %.1f%%\n",
+            n_distinct(nested_lines$donor), n_distinct(nested_lines$batch),
+            median(within_batch_icc) * 100))
+cat(sprintf("Same %d donors with batch ignored: median = %.1f%%\n",
+            n_distinct(nested_lines$donor), median(same_donors_icc) * 100))
+cat(sprintf("Share of the reference attributable to batch: %.1f percentage points\n",
+            (median(same_donors_icc) - median(within_batch_icc)) * 100))
+
+# ==============================================================================
+#  STEP 4: Subsampling: repeatedly draw n donors, re-estimate ICC
 # ==============================================================================
 
 cat("\n=== Subsampling analysis ===\n")
 
+subsample_pool <- if (SUBSAMPLE_POOL == "replicated") multi_line_donors else donors
+cat(sprintf("Subsampling pool: %s (%d donors)\n", SUBSAMPLE_POOL, length(subsample_pool)))
+
 n_subsample_vec <- c(2, 3, 5, 10, 20, 50)
-n_iterations <- 200  # per subsample size
-# Use the full gene set for which full-dataset ICC is available
+n_iterations <- 1000  # per subsample size 
+
 top_genes <- names(full_icc)
 cat(sprintf("Using all %d genes for subsampling\n", length(top_genes)))
 
@@ -206,7 +360,7 @@ names(n_rejected) <- as.character(n_subsample_vec)
 subsample_results <- list()
 
 for (n_sub in n_subsample_vec) {
-  if (n_sub > n_donors) next
+  if (n_sub > length(subsample_pool)) next
   
   cat(sprintf("n = %d donors: ", n_sub))
   flush.console()
@@ -217,8 +371,8 @@ for (n_sub in n_subsample_vec) {
   all_iter_iccs <- matrix(NA_real_, nrow = length(top_genes), ncol = n_iterations)
   
   for (iter in 1:n_iterations) {
-    sampled_donors <- sample(donors, n_sub)
-    sampled_lines  <- line_donor_map %>%
+    sampled_donors <- sample(subsample_pool, n_sub)
+    sampled_lines <- line_donor_map %>%
       filter(donor %in% sampled_donors)
     
     # Reject if no within-donor variance (all sampled donors are single-line)
@@ -367,15 +521,15 @@ pD2 <- ggplot(scatter_data %>% filter(n_sub %in% c(3, 5, 10)),
   scale_y_continuous(labels = c(0,25,50,75,100)) +
   coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
   labs(
-    title = "Subsampled ICC vs full-dataset ICC per gene",
-    x = "ICC from full dataset (~151 donors)",
+    title = "Subsampled ICC vs reference ICC per gene",
+    x = sprintf("Reference ICC (%d donors with two lines)", length(multi_line_donors)),
     y = "Mean ICC"
   ) +
   theme_pub +
   theme(legend.position = "none")
 
 
-tiff("../pics/figD_subsamples.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figD_subsamples_new.tiff", units = "in", res = 300, width = 6, height = 5)
 print(pD2)
 dev.off()
 
@@ -414,7 +568,7 @@ pD3 <- ggplot(median_data %>% filter(n_label != "n=50"), aes(x = median_icc, fil
         plot.title = element_text(size = 14))
 
 
-tiff("../pics/figD_median_subsamples.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figD_median_subsamples.tiff", units = "in", res = 300, width = 6, height = 5)
 print(pD3)
 dev.off()
 
@@ -479,9 +633,9 @@ pD4 <- ggplot(misclass_summary, aes(x = n_label, y = rate, fill = error_label)) 
   scale_fill_manual(values = c("#E63946", "#264653")) +
   labs(
     title = "Gene-level misclassification rates from subsampled ICC",
-    subtitle = paste0(
-                      "At n=3, roughly half of genuinely donor-driven ",
-                      "genes are misclassified as non-genetic"),
+#    subtitle = sprintf(
+#      "At n=3, %.0f%% of genes with reference ICC above 20%% are estimated below 10%%",
+#      100 * mean(misclass_data$miss_high_as_low[misclass_data$n_sub == 3], na.rm = TRUE)),
     x = "Number of donors sampled",
     y = "Misclassification rate",
     fill = NULL
@@ -489,12 +643,52 @@ pD4 <- ggplot(misclass_summary, aes(x = n_label, y = rate, fill = error_label)) 
   theme_pub +
   theme(legend.position = "top")
 
-ggsave("figD4_misclassification.pdf", pD4, width = 10, height = 6, dpi = 300)
-ggsave("figD4_misclassification.png", pD4, width = 10, height = 6, dpi = 300)
+batch_fig_levels <- c(
+  "Reference, lines grouped by donor",
+  "Donor within batch",
+  "Unrelated lines sharing a batch",
+  "Unrelated lines paired at random"
+)
 
-cat("Figure D4: Misclassification — done\n")
 
 
+# The two controls pool all pairings, weighted so that counts are per pairing
+batch_fig_data <- rbind(
+  data.frame(icc = as.numeric(full_icc), grouping = batch_fig_levels[1], w = 1),
+  data.frame(icc = as.numeric(within_batch_icc), grouping = batch_fig_levels[2], w = 1),
+  data.frame(icc = as.vector(control_same_batch), grouping = batch_fig_levels[3],
+             w = 1 / N_CONTROL_PAIRINGS),
+  data.frame(icc = as.vector(control_random), grouping = batch_fig_levels[4],
+             w = 1 / N_CONTROL_PAIRINGS)
+) %>%
+  mutate(grouping = factor(grouping, levels = batch_fig_levels))
+
+batch_fig_medians <- batch_fig_data %>%
+  group_by(grouping) %>%
+  summarize(med = median(icc), .groups = "drop")
+
+pD5 <- ggplot(batch_fig_data, aes(x = icc, weight = w)) +
+  geom_histogram(binwidth = 1 / 60, boundary = 0, fill = "#264653", color = "white",
+                 linewidth = 0.2, alpha = 0.85) +
+  geom_vline(data = batch_fig_medians, aes(xintercept = med),
+             linetype = "dashed", color = "#E63946", linewidth = 0.8) +
+  geom_text(data = batch_fig_medians, inherit.aes = FALSE,
+            aes(x = med + 0.03, y = Inf, label = sprintf("Median = %.0f%%", med * 100)),
+            color = "#E63946", vjust = 2, hjust = 0, size = 4, fontface = "bold") +
+  facet_wrap(~grouping, ncol = 1, scales = "free_y") +
+  scale_x_continuous(labels = scales::percent) +
+  coord_cartesian(xlim = c(0, 1)) +
+  labs(
+    title = "How much of the donor ICC is shared batch",
+    x = "Gene-wise ICC",
+    y = "Number of genes"
+  ) +
+  theme_pub +
+  theme(plot.title = element_text(size = 14))
+
+tiff("pics/figD_shared_batch.tiff", units = "in", res = 300, width = 6, height = 6)
+print(pD5)
+dev.off()
 
 # ==============================================================================
 # SUMMARY
@@ -521,6 +715,23 @@ for (n_sub_char in names(subsample_results)) {
               quantile(medians, 0.025) * 100,
               quantile(medians, 0.975) * 100,
               rej, n_iterations, 100 * rej / n_iterations))
+}
+
+cat("\nAgreement of subsampled with reference ICC, per gene:\n")
+for (n_sub_char in names(subsample_results)) {
+  res <- subsample_results[[n_sub_char]]
+  d_n <- scatter_data[scatter_data$n_sub == res$n_sub, ]
+  lin <- coef(lm(sub_icc ~ full_icc, data = d_n))[2]
+  lo_n <- predict(loess(sub_icc ~ full_icc, data = d_n, span = 0.75),
+                  newdata = data.frame(full_icc = c(0.1, 0.9)))
+  cat(sprintf("n=%2d: slope %.2f (linear), %.2f (loess, reference 10%% to 90%%) | estimates at zero: %.0f%%\n",
+              res$n_sub, lin, (lo_n[2] - lo_n[1]) / 0.8,
+              100 * mean(res$all_iccs == 0, na.rm = TRUE)))
+}
+if (SUBSAMPLE_POOL == "replicated") {
+  cat(sprintf("Note: the pool holds %d donors, so draws of 20 and 50 overlap heavily and\n",
+              length(subsample_pool)))
+  cat("their intervals are narrower than they would be for independent samples.\n")
 }
 
 cat("\nMisclassification rates:\n")

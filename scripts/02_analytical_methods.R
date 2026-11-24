@@ -461,6 +461,96 @@ for (n_val in c(2, 3, 5, 10)) {
 
 
 ################################################################################
+# PART B3: CAPTURE OF A SINGLE MODIFIER ALLELE
+#
+# if the phenotype depends on a modifier
+# allele at frequency p, does the panel contain it?
+#
+#   P(at least one carrier among n donors)  = 1 - (1 - p)^(2n)
+#
+# One carrier among non-carriers is a single discordant donor, which cannot be
+# told apart from line-to-line noise. Seeing the modifier act twice needs at
+# least two carriers. With carrier frequency c = 1 - (1 - p)^2 (Hardy-Weinberg):
+#
+#   P(at least two carriers) = 1 - (1 - c)^n - n * c * (1 - c)^(n - 1)
+#
+#   P(at least one carrier and one non-carrier) = 1 - (1 - c)^n - c^n
+################################################################################
+
+cat("\n=== PART B3: Modifier capture ===\n\n")
+
+p_two_carriers <- function(maf, n) {
+  cf <- 1 - (1 - maf)^2
+  1 - (1 - cf)^n - n * cf * (1 - cf)^(n - 1)
+}
+
+p_both_classes <- function(maf, n) {
+  cf <- 1 - (1 - maf)^2
+  1 - (1 - cf)^n - cf^n
+}
+
+modifier_mafs <- c(0.01, 0.05, 0.10, 0.20)
+modifier_n    <- c(1, 2, 3, 5, 10, 20, 50, 100)
+
+modifier_grid <- expand.grid(maf = modifier_mafs, n = modifier_n) %>%
+  mutate(
+    one_carrier  = p_capture(maf, n),
+    two_carriers = p_two_carriers(maf, n),
+    both_classes = p_both_classes(maf, n),
+    maf_label = factor(paste0(maf * 100, "%"),
+                       levels = paste0(modifier_mafs * 100, "%"))
+  )
+
+cat("P(panel contains at least one carrier) / P(at least two carriers), %\n\n")
+cat(sprintf("  %-8s %s\n", "donors",
+            paste(sprintf("MAF=%-9s", paste0(modifier_mafs * 100, "%")), collapse = " ")))
+for (n_val in modifier_n) {
+  r <- modifier_grid[modifier_grid$n == n_val, ]
+  cat(sprintf("  %-8d %s\n", n_val,
+              paste(sprintf("%5.1f / %5.1f ", r$one_carrier * 100,
+                            r$two_carriers * 100), collapse = " ")))
+}
+
+cat("\nDonors needed for a 95% chance of at least two carriers:\n")
+for (m in modifier_mafs) {
+  n_need <- 2
+  while (p_two_carriers(m, n_need) < 0.95) n_need <- n_need + 1
+  cat(sprintf("  MAF %4.0f%%: %d donors\n", m * 100, n_need))
+}
+
+modifier_long <- modifier_grid %>%
+  pivot_longer(cols = c(one_carrier, two_carriers),
+               names_to = "event", values_to = "prob") %>%
+  mutate(event = factor(event, levels = c("one_carrier", "two_carriers"),
+                        labels = c("At least one carrier in the panel",
+                                   "At least two carriers in the panel")))
+
+pB3 <- ggplot(modifier_long, aes(x = n, y = prob, color = maf_label,
+                                 group = maf_label)) +
+  annotate("rect", xmin = 1, xmax = 5, ymin = 0, ymax = 1,
+           fill = "grey50", alpha = 0.12) +
+  geom_hline(yintercept = 0.95, linetype = "dashed", color = "grey50") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.2) +
+  facet_wrap(~event, nrow = 1) +
+  scale_x_continuous(trans = "log10", breaks = modifier_n) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_color_manual(values = c("#93C5FD", "#3B82F6", "#1D4ED8", "#1E3A5F")) +
+  labs(
+    title = "Chance that a donor panel contains a given modifier allele",
+    x = "Donors in the panel (log scale)",
+    y = "Probability",
+    color = "Modifier allele frequency"
+  ) +
+  theme_pub
+
+
+tiff("pics/figB3.tiff", units = "in", res = 300, width = 7.5, height = 5)
+print(pB3)
+dev.off()
+
+
+################################################################################
 # PART C: EXACT CONFIDENCE INTERVALS FOR ICC
 #
 # For balanced one-way random effects (Shrout & Fleiss, 1979):
@@ -705,7 +795,7 @@ conc_long <- conc_table %>%
                           labels = c("All n donors agree", "n - 1 of n donors agree")))
 
 pD <- ggplot(conc_long, aes(x = n, y = lower, color = outcome, group = outcome)) +
-  annotate("rect", xmin = 3, xmax = 5, ymin = 0, ymax = 1,
+  annotate("rect", xmin = 1, xmax = 5, ymin = 0, ymax = 1,
            fill = "grey50", alpha = 0.12) +
   geom_line(linewidth = 1) +
   geom_point(size = 2.2) +

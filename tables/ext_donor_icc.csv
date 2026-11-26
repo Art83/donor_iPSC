@@ -1,0 +1,17 @@
+"dataset","assay","grouping","n_donors","n_lines","n_batches","n_features","icc_q25","icc_median","icc_q75","pct_features_icc_over_20","pct_features_icc_over_50","icc_median_same_donors_batch_ignored","control_min","control_max"
+"Mirauta 2020","proteomics","lines grouped by donor, batch ignored",51,102,NA,9013,0.307807729356693,0.431720221504431,0.551676129691192,90.191944968379,35.2157994008654,NA,NA,NA
+"Mirauta 2020","proteomics","donor within TMT batch",40,80,11,9013,0.217932404231632,0.348487326663689,0.476235147686795,77.7543548208144,20.9475202485299,0.398213025617443,NA,NA
+"Mirauta 2020","proteomics","control: unrelated lines in the same TMT batch",NA,202,NA,9013,NA,0.120930756930856,NA,NA,NA,NA,0.0758344967331941,0.168537973998522
+"Mirauta 2020","proteomics","control: unrelated lines grouped at random",NA,202,NA,9013,NA,0.00638038616440451,NA,NA,NA,NA,0,0.048241932995843
+"Kilpinen 2017","expression array","lines grouped by donor, batch ignored",165,377,NA,17711,0.647935941748512,0.726090862280742,0.807777421227756,100,97.8036248659025,NA,NA,NA
+"Kilpinen 2017","expression array","donor within array chip",84,190,34,17711,0.269253907688938,0.380092856697443,0.481868385514587,85.7150923155101,21.3370221895997,0.760188683172908,NA,NA
+"Kilpinen 2017","expression array","control: unrelated lines in the same array chip",NA,444,NA,17711,NA,0.569558186000418,NA,NA,NA,NA,0.534136069467191,0.583356205058828
+"Kilpinen 2017","expression array","control: unrelated lines grouped at random",NA,444,NA,17711,NA,0.00657288654192954,NA,NA,NA,NA,0,0.0443980589486792
+"Kilpinen 2017","RNA-seq","lines grouped by donor, batch ignored",53,106,NA,9783,0.0858750054338897,0.186916049893136,0.281333666805329,46.427476234284,2.31012981702954,NA,NA,NA
+"Kilpinen 2017","RNA-seq","control: unrelated lines grouped at random",NA,106,NA,9783,NA,0,NA,NA,NA,NA,0,0.0934755955535162
+"Carcamo-Orive 2017","RNA-seq","lines grouped by donor, batch ignored",100,316,NA,9961,0.653901684443441,0.723905947851277,0.78688174054079,99.979921694609,97.6006425057725,NA,NA,NA
+"Carcamo-Orive 2017","RNA-seq","donor within sequencing batch",100,316,8,9961,0.519736872071305,0.593791157472165,0.664180565997848,99.9196867784359,80.2429474952314,0.723905947851277,NA,NA
+"Carcamo-Orive 2017","RNA-seq","donor within reprogramming batch",98,306,11,9961,0.536074110266315,0.616954276080468,0.686424029104081,99.9297259311314,84.1180604356992,0.720374497974151,NA,NA
+"Carcamo-Orive 2017","RNA-seq","donor within RNA harvest date",41,121,12,9961,0.416683781426567,0.51896516528341,0.61925769923811,98.4941270956731,54.8037345648027,0.72586802001283,NA,NA
+"Carcamo-Orive 2017","RNA-seq","control: unrelated lines in the same sequencing batch",NA,317,NA,9961,NA,0.242353284225085,NA,NA,NA,NA,0.218315753641018,0.267858862350749
+"Carcamo-Orive 2017","RNA-seq","control: unrelated lines grouped at random",NA,317,NA,9961,NA,0,NA,NA,NA,NA,0,0.0156250795503629

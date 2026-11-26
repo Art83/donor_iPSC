@@ -1,0 +1,101 @@
+"parameter","feeds","dataset","cell_type","assay","condition","value","lower","upper","range","n_donors"
+"donor_icc","01 02 03 05","Mirauta 2020","iPSCs","proteomics","lines grouped by donor, batch ignored",0.4317,0.3078,0.5517,"quartiles across features",51
+"donor_icc","01 02 03 05","Mirauta 2020","iPSCs","proteomics","donor within TMT batch",0.3485,0.2179,0.4762,"quartiles across features",40
+"donor_icc","01 02 03 05","Kilpinen 2017","iPSCs","expression array","lines grouped by donor, batch ignored",0.7261,0.6479,0.8078,"quartiles across features",165
+"donor_icc","01 02 03 05","Kilpinen 2017","iPSCs","expression array","donor within array chip",0.3801,0.2693,0.4819,"quartiles across features",84
+"donor_icc","01 02 03 05","Kilpinen 2017","iPSCs","RNA-seq","lines grouped by donor, batch ignored",0.1869,0.08588,0.2813,"quartiles across features",53
+"donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","lines grouped by donor, batch ignored",0.7239,0.6539,0.7869,"quartiles across features",100
+"donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within sequencing batch",0.5938,0.5197,0.6642,"quartiles across features",100
+"donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within reprogramming batch",0.617,0.5361,0.6864,"quartiles across features",98
+"donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within RNA harvest date",0.519,0.4167,0.6193,"quartiles across features",41
+"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines in the same TMT batch",0.1209,0.07583,0.1685,"lowest and highest median across pairings",NA
+"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines grouped at random",0.00638,0,0.04824,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines in the same array chip",0.5696,0.5341,0.5834,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines grouped at random",0.006573,0,0.0444,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0,0,0.09348,"lowest and highest median across pairings",NA
+"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines in the same sequencing batch",0.2424,0.2183,0.2679,"lowest and highest median across pairings",NA
+"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0,0,0.01563,"lowest and highest median across pairings",NA
+"line_sd_log2","05","Mirauta 2020","iPSCs","proteomics","log2 abundance",0.2161,0.178,0.2732,"quartiles across features",151
+"line_sd_log2","05","Kilpinen 2017","iPSCs","expression array","log2 intensity",0.3781,0.3122,0.4831,"quartiles across features",232
+"line_sd_log2","05","Kilpinen 2017","iPSCs","RNA-seq","log2 TPM",0.4042,0.3187,0.517,"quartiles across features",129
+"line_sd_log2","05","Carcamo-Orive 2017","iPSCs","RNA-seq","log2 CPM",0.3193,0.2563,0.4124,"quartiles across features",101
+"line_sd_log2","05","Alasoo 2018","macrophages, naive","RNA-seq","log2 cqn",0.2785,0.2099,0.428,"quartiles across features",84
+"line_sd_log2","05","Knowles 2018","cardiomyocytes, untreated","RNA-seq","log2 CPM",0.3138,0.2197,0.4805,"quartiles across features",41
+"line_sd_log2","05","Schwartzentruber 2018","sensory neurons","RNA-seq","log2 TPM",0.547,0.4132,0.7812,"quartiles across features",102
+"line_sd_log2","05","Schwartzentruber 2018","sensory neurons, genes shared with iPSCs","RNA-seq","log2 TPM",0.5172,0.3967,0.6975,"quartiles across features",102
+"line_sd_log2","05","Kilpinen 2017","iPSCs, genes shared with sensory neurons","RNA-seq","log2 TPM",0.3874,0.3084,0.4876,"quartiles across features",129
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change <1.1",0.4685,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.1-1.2",1.427,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.2-1.5",2.707,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.5-2",4.062,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change >=2",5.522,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change <1.1",0.4284,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.1-1.2",1.298,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.2-1.5",2.389,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.5-2",3.535,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change >=2",4.763,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change <1.1",0.4694,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.1-1.2",1.48,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.2-1.5",2.99,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.5-2",4.914,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change >=2",7.145,NA,NA,NA,76
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change <1.1",0.4105,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.1-1.2",1.329,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.2-1.5",2.649,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.5-2",4.351,NA,NA,NA,84
+"beta_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change >=2",6.4,NA,NA,NA,84
+"beta_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change <1.1",0.309,NA,NA,NA,36
+"beta_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.1-1.2",0.9159,NA,NA,NA,36
+"beta_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.2-1.5",1.966,NA,NA,NA,36
+"beta_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.5-2",3.37,NA,NA,NA,36
+"beta_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change >=2",7.065,NA,NA,NA,36
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change <1.1",0.4038,0.0861,0.6335,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.1-1.2",0.4049,0.04668,0.6403,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.2-1.5",0.4517,0.1618,0.6991,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.5-2",0.5204,0.2395,0.8123,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change >=2",0.6068,0.2815,1.022,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change <1.1",0.4121,0.1699,0.612,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.1-1.2",0.3973,0.1538,0.6149,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.2-1.5",0.4212,0.1559,0.6665,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.5-2",0.4713,0.1937,0.7556,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change >=2",0.5507,0.1969,1.02,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change <1.1",0.6664,0.451,0.8897,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.1-1.2",0.6945,0.5042,0.9197,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.2-1.5",0.7242,0.5109,0.9441,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.5-2",0.7396,0.5293,0.9882,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change >=2",0.7634,0.5073,1.031,"quartiles across genes",76
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change <1.1",0.762,0.503,1.025,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.1-1.2",0.7913,0.5405,1.039,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.2-1.5",0.8122,0.5504,1.07,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.5-2",0.8356,0.5918,1.114,"quartiles across genes",84
+"sigma_int_resid","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change >=2",0.8447,0.5846,1.147,"quartiles across genes",84
+"sigma_int_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change <1.1",0.7317,0.5036,1.054,"quartiles across genes",36
+"sigma_int_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.1-1.2",0.697,0.4366,1.012,"quartiles across genes",36
+"sigma_int_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.2-1.5",0.6704,0.4044,0.9556,"quartiles across genes",36
+"sigma_int_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.5-2",0.6105,0.316,0.8952,"quartiles across genes",36
+"sigma_int_resid","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change >=2",0.6529,0.4078,0.9092,"quartiles across genes",36
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change <1.1",15.14,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.1-1.2",0.2097,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.2-1.5",0.000176,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change 1.5-2",1.054e-07,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch within stimulation date, mean fold change >=2",4.822e-09,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change <1.1",18.93,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.1-1.2",0.5277,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.2-1.5",0.0006916,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change 1.5-2",1.35e-06,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","IFNg, batch ignored, mean fold change >=2",2.69e-08,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change <1.1",29.68,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.1-1.2",5.302,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.2-1.5",0.09769,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change 1.5-2",6.331e-05,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch within stimulation date, mean fold change >=2",1.954e-10,NA,NA,NA,76
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change <1.1",33.1,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.1-1.2",10.56,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.2-1.5",0.7212,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change 1.5-2",0.006345,NA,NA,NA,84
+"pct_donors_opposite","04","Alasoo 2018","macrophages","RNA-seq","Salmonella, batch ignored, mean fold change >=2",2.649e-06,NA,NA,NA,84
+"pct_donors_opposite","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change <1.1",37.46,NA,NA,NA,36
+"pct_donors_opposite","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.1-1.2",17.51,NA,NA,NA,36
+"pct_donors_opposite","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.2-1.5",1.641,NA,NA,NA,36
+"pct_donors_opposite","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change 1.5-2",0.002938,NA,NA,NA,36
+"pct_donors_opposite","04","Knowles 2018","cardiomyocytes","RNA-seq","Doxorubicin, batch not available, mean fold change >=2",1.463e-14,NA,NA,NA,36

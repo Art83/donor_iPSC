@@ -1,0 +1,38 @@
+"parameter","feeds","dataset","cell_type","assay","condition","value","lower","upper","range","n_donors"
+"sd_log2","05","ROSMAP DLPFC","human brain","TMT ratio","technical",0.05765,0.02986,0.09287,"quartiles across proteins",NA
+"sd_log2","05","ROSMAP DLPFC","human brain","TMT ratio","between genome",0.1072,0.07934,0.1517,"quartiles across proteins",400
+"sd_log2","05","ROSMAP DLPFC","human brain","TMT ratio","total",0.1255,0.09175,0.1711,"quartiles across proteins",400
+"sd_log2","05","DC frontal","human brain","TMT ratio","technical",0.05739,0.03489,0.09845,"quartiles across proteins",NA
+"sd_log2","05","DC frontal","human brain","TMT ratio","between genome",0.1397,0.1004,0.1955,"quartiles across proteins",814
+"sd_log2","05","DC frontal","human brain","TMT ratio","total",0.161,0.1204,0.2132,"quartiles across proteins",814
+"sd_log2","05","DC temporal","human brain","TMT ratio","technical",0.03437,0.02209,0.06091,"quartiles across proteins",NA
+"sd_log2","05","DC temporal","human brain","TMT ratio","between genome",0.1445,0.1053,0.2008,"quartiles across proteins",280
+"sd_log2","05","DC temporal","human brain","TMT ratio","total",0.1559,0.1168,0.2103,"quartiles across proteins",280
+"sd_log2","05","iA","iAstrocytes","TMT ratio","between genome",0.1563,0.1137,0.2219,"quartiles across proteins",44
+"sd_log2","05","iN","iNeurons","label-free","between genome",0.4525,0.3525,0.5896,"quartiles across proteins",40
+"sd_log2","05","organoid","cerebral organoids","DIA","within genome",0.2844,0.2068,0.42,"quartiles across proteins",5
+"sd_log2","05","organoid","cerebral organoids","DIA","between genome",0.4271,0.2535,0.6618,"quartiles across proteins",5
+"sd_log2","05","organoid","cerebral organoids","DIA","between genome, within diagnosis",0.3732,0.2137,0.5746,"quartiles across proteins",5
+"sd_log2","05","organoid","cerebral organoids","DIA","total",0.561,0.3859,0.778,"quartiles across proteins",5
+"sd_log2","05","LOAD2","mouse brain","TMT ratio","within genome",0.08449,0.05738,0.1209,"quartiles across proteins",107
+"sd_log2","05","LOAD2","mouse brain","TMT ratio","technical",0.05867,0.03978,0.08622,"quartiles across proteins",NA
+"sd_log2","05","LOAD2","mouse brain","TMT ratio","within genome, biological",0.05133,0.02441,0.08592,"quartiles across proteins",107
+"sd_log2","05","Peng","mouse brain","TMT intensity","within genome",0.07002,0.05114,0.1049,"quartiles across proteins",62
+"technical_share","05","LOAD2","mouse brain","TMT ratio","of within-genome variance",0.507,0.3056,0.8063,"quartiles across proteins",107
+"technical_share","05","ROSMAP DLPFC","human brain","TMT ratio","of total variance",0.1308,0.05599,0.2703,"quartiles across proteins",400
+"technical_share","05","DC frontal","human brain","TMT ratio","of total variance",0.1096,0.04448,0.2451,"quartiles across proteins",814
+"technical_share","05","DC temporal","human brain","TMT ratio","of total variance",0.0451,0.01651,0.1185,"quartiles across proteins",280
+"line_icc","01 05","organoid","cerebral organoids","DIA","all lines",0.6814,0.4302,0.842,"quartiles across proteins",5
+"line_icc","01 05","organoid","cerebral organoids","DIA","within diagnosis",0.6231,0.3485,0.8024,"quartiles across proteins",5
+"sd_relative_to_brain","05","DC temporal","human brain","TMT ratio","between genome",1.03,0.9092,1.162,"quartiles across shared proteins",280
+"sd_relative_to_brain","05","ROSMAP DLPFC","human brain","TMT ratio","between genome",0.7637,0.6065,0.9541,"quartiles across shared proteins",400
+"sd_relative_to_brain","05","iA","iAstrocytes","TMT ratio","between genome",1.117,0.8086,1.541,"quartiles across shared proteins",44
+"sd_relative_to_brain","05","LOAD2","mouse brain","TMT ratio","within genome",0.5722,0.4165,0.7833,"quartiles across shared proteins",107
+"sd_relative_to_brain","05","LOAD2","mouse brain","TMT ratio","within genome, biological",0.3583,0.1792,0.5523,"quartiles across shared proteins",107
+"sd_relative_to_brain","05","LOAD2","mouse brain","TMT ratio","technical",0.3957,0.2781,0.5705,"quartiles across shared proteins",NA
+"sd_relative_to_brain","05","DC frontal","human brain","TMT ratio","technical",0.3265,0.21,0.4992,"quartiles across shared proteins",NA
+"line_sd_log2","05","DC frontal","human brain","TMT ratio","one sample per donor or line",0.161,0.1204,0.2132,"quartiles across proteins",814
+"line_sd_log2","05","ROSMAP DLPFC","human brain","TMT ratio","one sample per donor or line",0.1255,0.09175,0.1711,"quartiles across proteins",400
+"line_sd_log2","05","iA","iAstrocytes","TMT ratio","one sample per donor or line",0.1563,0.1137,0.2219,"quartiles across proteins",44
+"line_sd_log2","05","iN","iNeurons","label-free","one sample per donor or line",0.4525,0.3525,0.5896,"quartiles across proteins",40
+"line_sd_log2","05","organoid","cerebral organoids","DIA","one sample per donor or line",0.561,0.3859,0.778,"quartiles across proteins",5

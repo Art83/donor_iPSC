@@ -18,7 +18,8 @@
 # design, before any shared batch is counted.
 #
 # PART A  Donor ICC in iPSCs        -> scripts 01, 02, 03, 05
-#         Mirauta et al. 2020        proteomics, 51 donors with two lines
+#         Mirauta et al. 2020        RNA-seq and proteomics of the same lines,
+#                                    51 donors with two lines
 #         Kilpinen et al. 2017       expression arrays, 165 donors with two or
 #                                    three lines
 #         Kilpinen et al. 2017       RNA-seq (Expression Atlas E-ENAD-35),
@@ -350,7 +351,7 @@ donor_icc_block <- function(dataset, assay, mat, donor, batches = list(),
 
 
 # ==============================================================================
-# Load: Mirauta et al. 2020, iPSC proteomics
+# Load: Mirauta et al. 2020, iPSC RNA-seq and proteomics
 # ==============================================================================
 
 cat("=== Mirauta et al. 2020 ===\n")
@@ -358,8 +359,11 @@ mi_meta <- read.delim(file.path(DATA_DIR, "Mirauta", "elife-57390-fig1-data1-v3.
                       row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
 mi_expr <- as.matrix(read.delim(file.path(DATA_DIR, "Mirauta", "elife-57390-fig1-data2-v3.xls"),
                                 row.names = 1, check.names = FALSE, stringsAsFactors = FALSE))
+# Figure 1 source data 2 is RNA expression for the genes also detected as
+# protein. Source data 3 is the protein matrix.
 # line to donor and batch, as in 03_validation_real_data.R. batch is the only
-# processing batch the source metadata records (the TMT batch).
+# processing batch the source metadata records, the TMT batch of the protein
+# sample. For the RNA matrix it is a proxy for lines handled together.
 mi_map <- unique(data.frame(line = mi_meta[["Public name"]], donor = mi_meta[["Donor"]],
                             batch = as.character(mi_meta[["batch"]]),
                             stringsAsFactors = FALSE))
@@ -368,8 +372,22 @@ mi_missing <- is.na(mi_map$line)
 mi_map$line[mi_missing]  <- colnames(mi_expr)[mi_missing]
 mi_map$donor[mi_missing] <- sub(".*-([a-z]+)_.*", "\\1", colnames(mi_expr)[mi_missing])
 stopifnot(identical(mi_map$line, colnames(mi_expr)), !anyNA(mi_expr))
-cat(sprintf("%d lines, %d donors, %d genes\n",
+cat(sprintf("RNA-seq: %d lines, %d donors, %d genes\n",
             nrow(mi_map), length(unique(mi_map$donor)), nrow(mi_expr)))
+
+# protein intensities after the authors' batch correction and quantile
+# normalisation. Columns are line@TMT batch@channel. The 202 lines of the
+# metadata are kept, which drops the repeats of the reference line.
+mi_prot_all <- read.delim(file.path(DATA_DIR, "Mirauta", "elife-57390-fig1-data3.xls"),
+                          row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
+stopifnot(all(rownames(mi_meta) %in% colnames(mi_prot_all)))
+mi_prot <- as.matrix(mi_prot_all[, rownames(mi_meta)])
+colnames(mi_prot) <- mi_meta[["Public name"]]
+mi_prot <- log2(mi_prot[rowSums(is.na(mi_prot) | mi_prot <= 0) == 0, ])
+mi_prot_map <- mi_map[match(colnames(mi_prot), mi_map$line), ]
+stopifnot(!anyNA(mi_prot_map$line))
+cat(sprintf("Proteomics: %d lines, %d donors, %d of %d proteins quantified in every line\n",
+            ncol(mi_prot), length(unique(mi_prot_map$donor)), nrow(mi_prot), nrow(mi_prot_all)))
 
 
 # ==============================================================================
@@ -589,9 +607,9 @@ cat("\n\n################ PART A: donor ICC in iPSCs ################\n")
 ip_pairs <- atlas_log2(ip_tpm[, ip_donor %in% names(which(table(ip_donor) == 2))])
 
 donor_icc <- rbind(
-  donor_icc_block("Mirauta 2020", "proteomics", mi_expr, mi_map$donor,
-                  batches = list("TMT batch" = mi_map$batch),
-                  control_batch = "TMT batch", control_size = 2),
+  donor_icc_block("Mirauta 2020", "RNA-seq", mi_expr, mi_map$donor,
+                  batches = list("proteomics batch" = mi_map$batch),
+                  control_batch = "proteomics batch", control_size = 2),
   donor_icc_block("Kilpinen 2017", "expression array", ka$mat, ka$donor,
                   batches = list("array chip" = ka$chip),
                   control_batch = "array chip", control_size = 2),
@@ -603,6 +621,16 @@ donor_icc <- rbind(
                                  "RNA harvest date" = co_meta$harvest_date),
                   control_batch = "sequencing batch", control_size = 3)
 )
+# The random number state is restored after the protein block, so the random
+# pairings and permutations of the other datasets do not depend on it.
+rng_state <- .Random.seed
+donor_icc <- rbind(
+  donor_icc,
+  donor_icc_block("Mirauta 2020", "proteomics", mi_prot, mi_prot_map$donor,
+                  batches = list("TMT batch" = mi_prot_map$batch),
+                  control_batch = "TMT batch", control_size = 2)
+)
+.Random.seed <- rng_state
 rownames(donor_icc) <- NULL
 write.csv(donor_icc, file.path(TABLES_DIR, "ext_donor_icc.csv"), row.names = FALSE)
 
@@ -618,9 +646,12 @@ ip_log2 <- atlas_log2(atlas_one_per_donor(ip_tpm))
 shared <- intersect(rownames(sn_log2), rownames(ip_log2))
 
 line_sd <- rbind(
-  # Mirauta abundances are log values, taken as log2 as in script 05
-  line_sd_row("Mirauta 2020", "iPSCs", "proteomics", "log2 abundance",
+  # The log base of the Mirauta RNA matrix is not stated. Against Kilpinen
+  # log2 TPM on shared genes and lines its slope is 0.88, so it is taken as log2.
+  line_sd_row("Mirauta 2020", "iPSCs", "RNA-seq", "log2 expression",
               mi_expr[, !duplicated(mi_map$donor)]),
+  line_sd_row("Mirauta 2020", "iPSCs", "proteomics", "log2 intensity",
+              mi_prot[, !duplicated(mi_prot_map$donor)]),
   line_sd_row("Kilpinen 2017", "iPSCs", "expression array", "log2 intensity",
               ka$mat[, !duplicated(ka$donor)]),
   line_sd_row("Kilpinen 2017", "iPSCs", "RNA-seq", "log2 TPM", ip_log2),

@@ -178,7 +178,7 @@ pD1 <- ggplot(power_grid, aes(x = n, y = power, color = effect_label,
   ) +
   theme_pub
 
-tiff("pics/figD_power_disease_effect.tiff", units = "in", res = 300, width = 8, height = 5)
+tiff("pics/figD_power_disease_effect.tiff", units = "in", res = 300, width = 8, height = 5, compression = "lzw")
 print(pD1)
 dev.off()
 
@@ -231,7 +231,7 @@ pD2 <- ggplot(mde_grid, aes(x = n, y = mde, color = icc_label, group = icc_label
   ) +
   theme_pub
 
-tiff("pics/figD_smallest_effect.tiff", units = "in", res = 300, width = 7, height = 5)
+tiff("pics/figD_smallest_effect.tiff", units = "in", res = 300, width = 7, height = 5, compression = "lzw")
 print(pD2)
 dev.off()
 
@@ -330,7 +330,7 @@ pD3 <- ggplot(rep_grid, aes(x = k, y = power, color = n_label, group = n_label))
   ) +
   theme_pub
 
-tiff("pics/figD_adding_replicates.tiff", units = "in", res = 300, width = 7, height = 5)
+tiff("pics/figD_adding_replicates.tiff", units = "in", res = 300, width = 7, height = 5, compression = "lzw")
 print(pD3)
 dev.off()
 
@@ -437,7 +437,7 @@ pD4 <- ggplot(fpr_grid, aes(x = n, y = fpr, color = icc_label, group = icc_label
   ) +
   theme_pub
 
-tiff("pics/figD_FP.tiff", units = "in", res = 300, width = 7, height = 5)
+tiff("pics/figD_FP.tiff", units = "in", res = 300, width = 7, height = 5, compression = "lzw")
 print(pD4)
 dev.off()
 
@@ -586,13 +586,110 @@ pD6 <- ggplot(fc_exag, aes(x = n, y = exaggeration, color = fc_label, group = fc
   theme_pub
 
 
-tiff("pics/figD_power_FC.tiff", units = "in", res = 300, width = 8, height = 11)
+tiff("pics/figD_power_FC.tiff", units = "in", res = 300, width = 8, height = 11, compression = "lzw")
 print(pD5)
 dev.off()
 
-tiff("pics/figD_exaggeration.tiff", units = "in", res = 300, width = 8, height = 11)
+tiff("pics/figD_exaggeration.tiff", units = "in", res = 300, width = 8, height = 11, compression = "lzw")
 print(pD6)
 dev.off()
+
+
+################################################################################
+# PART H: MEASURED AD EFFECT SIZES
+################################################################################
+
+cat("\n=== PART H: Measured AD effect sizes ===\n\n")
+
+effects_tbl <- read.csv("tables/effects_summary.csv", stringsAsFactors = FALSE)
+variance_tbl <- read.csv("tables/variance_specs.csv", stringsAsFactors = FALSE)
+ad <- effects_tbl[effects_tbl$contrast == "human: AD vs control", ]
+
+MEASURED <- data.frame(
+  effect = c("AD, median protein", "AD, top tenth of proteins"),
+  delta = sqrt(pmax(c(ad$median_abs_d^2 - ad$null_median^2, ad$q90_abs_d^2 - ad$null_q90^2), 0)),
+  fc = c(ad$median_fold_change, ad$q90_fold_change),
+  stringsAsFactors = FALSE
+)
+ICC_ORGANOID <- variance_tbl$value[variance_tbl$parameter == "line_icc" &
+                                     variance_tbl$condition == "within diagnosis"]
+ICCS_H <- c(ICCS_G, ICC_ORGANOID)
+ICC_LABELS_H <- c(paste0("ICC = ", ICCS_G * 100, "%"),
+                  sprintf("ICC = %.0f%% (organoids)", ICC_ORGANOID * 100))
+N_GRID_H <- c(2, 3, 5, 10, 20, 50, 100, 200)
+
+measured_grid <- expand.grid(icc = ICCS_H, n = N_GRID_H, e = seq_len(nrow(MEASURED))) %>%
+  mutate(
+    effect = factor(MEASURED$effect[e], levels = MEASURED$effect),
+    delta = MEASURED$delta[e],
+    fc = MEASURED$fc[e],
+    power = mapply(power_disease, n = n, k = K_REPS, icc = icc, delta = delta),
+    icc_label = factor(ICC_LABELS_H[match(icc, ICCS_H)], levels = ICC_LABELS_H)
+  )
+
+cat(sprintf("Human AD against control, %d against %d donors, %d proteins\n\n",
+            ad$n_group1, ad$n_group0, ad$proteins))
+cat(sprintf("  %-26s %-6s %-6s %-24s %s  %s\n", "effect", "SD", "FC", "ICC",
+            paste(sprintf("n=%-4d", c(3, 5, 10, 20, 50)), collapse = " "),
+            "donors/group for 80%"))
+for (i in seq_len(nrow(MEASURED))) {
+  for (ic in ICCS_H) {
+    r <- measured_grid[measured_grid$e == i & measured_grid$icc == ic &
+                         measured_grid$n %in% c(3, 5, 10, 20, 50), ]
+    cat(sprintf("  %-26s %-6.2f %-6.2f %-24s %s  %d\n", MEASURED$effect[i], MEASURED$delta[i],
+                MEASURED$fc[i], ICC_LABELS_H[match(ic, ICCS_H)],
+                paste(sprintf("%5.1f ", r$power * 100), collapse = " "),
+                donors_required(K_REPS, ic, MEASURED$delta[i])))
+  }
+}
+
+measured_mc_grid <- expand.grid(icc = ICCS_H, n = c(3, 5, 10, 20, 50), e = seq_len(nrow(MEASURED)))
+measured_exag <- do.call(rbind, lapply(seq_len(nrow(measured_mc_grid)), function(i) {
+  r <- simulate_contrast(measured_mc_grid$n[i], K_REPS, measured_mc_grid$icc[i],
+                         MEASURED$delta[measured_mc_grid$e[i]])
+  r$effect <- MEASURED$effect[measured_mc_grid$e[i]]
+  r$fc <- MEASURED$fc[measured_mc_grid$e[i]]
+  r
+})) %>%
+  mutate(
+    fc_reported = 2^(exaggeration * log2(fc)),
+    icc_label = ICC_LABELS_H[match(icc, ICCS_H)]
+  )
+
+cat("\nAmong significant results: exaggeration and the fold change reported\n\n")
+cat(sprintf("  %-26s %-24s %-12s %8s %14s %14s\n",
+            "effect", "ICC", "donors/group", "power", "exaggeration", "reported FC"))
+for (i in seq_len(nrow(measured_exag))) {
+  r <- measured_exag[i, ]
+  cat(sprintf("  %-26s %-24s %-12d %7.1f%% %13.2fx %14.2f\n",
+              r$effect, r$icc_label, r$n, r$power_mc * 100, r$exaggeration, r$fc_reported))
+}
+
+pD7 <- ggplot(measured_grid, aes(x = n, y = power, color = effect, group = effect)) +
+  annotate("rect", xmin = 3, xmax = 5, ymin = 0, ymax = 1, fill = "grey50", alpha = 0.12) +
+  geom_hline(yintercept = 0.80, linetype = "dashed", color = "grey50") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.2) +
+  facet_wrap(~icc_label, nrow = 1) +
+  scale_x_continuous(trans = "log10", breaks = N_GRID_H) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_color_manual(values = c("#2166AC", "#B2182B")) +
+  labs(
+    title = "Power at the effect sizes measured in human AD cortex",
+    x = "Donors per group (log scale)",
+    y = "Power",
+    color = NULL
+  ) +
+  theme_pub
+
+tiff("pics/figD_power_measured.tiff", units = "in", res = 300, width = 11, height = 5, compression = "lzw")
+print(pD7)
+dev.off()
+
+write.csv(measured_grid %>% select(effect, delta, fc, icc, n, power),
+          "tables/tableE7_power_measured_effects.csv", row.names = FALSE)
+write.csv(measured_exag %>% select(effect, delta, fc, icc, n, power_mc, exaggeration, sign_error, fc_reported),
+          "tables/tableE8_exaggeration_measured_effects.csv", row.names = FALSE)
 
 
 ################################################################################

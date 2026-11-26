@@ -18,7 +18,9 @@
 #
 # N per group is the two-sample normal approximation for 80% power at two-sided
 # alpha 0.05, n = 2 (z_0.975 + z_0.8)^2 / d^2, at the median and 90th percentile
-# |d| after subtracting the same quantile of the null.
+# |d| with the same quantile of the null removed as a difference of squares,
+# d^2 = observed^2 - null^2. No N is given when the observed quantile is not
+# above the shuffled-label distribution at p <= 0.05.
 #
 # Each model contrast is also correlated with the human AD effect on shared
 # proteins, against the same null.
@@ -196,12 +198,21 @@ for (m in list(list("FAD", 6), list("FAD", 12), list("NLGF", 18))) {
 # Summary
 # ==============================================================================
 
+perm_p <- function(obs, null, exact) {
+  k <- sum(null >= obs - 1e-12)
+  if (exact) k / length(null) else (k + 1) / (length(null) + 1)
+}
+
 summarise <- function(c) {
   ad <- abs(c$d)
-  null_med <- mean(apply(abs(c$null_d), 2, median))
-  null_q90 <- mean(apply(abs(c$null_d), 2, q90))
-  med_ex <- max(median(ad) - null_med, 0)
-  q90_ex <- max(q90(ad) - null_q90, 0)
+  null_meds <- apply(abs(c$null_d), 2, median)
+  null_q90s <- apply(abs(c$null_d), 2, q90)
+  null_med <- mean(null_meds)
+  null_q90 <- mean(null_q90s)
+  p_med <- perm_p(median(ad), null_meds, c$exact)
+  p_q90 <- perm_p(q90(ad), null_q90s, c$exact)
+  med_ex <- sqrt(max(median(ad)^2 - null_med^2, 0))
+  q90_ex <- sqrt(max(q90(ad)^2 - null_q90^2, 0))
   fc <- abs(c$beta)
 
   rho <- rho_null95 <- p_conc <- p_min <- NA
@@ -221,8 +232,8 @@ summarise <- function(c) {
   out <- data.frame(
     contrast = c$name, unit = c$unit, n_group1 = c$n1, n_group0 = c$n0, proteins = length(ad),
     median_abs_d = median(ad), null_median = null_med, q90_abs_d = q90(ad), null_q90 = null_q90,
-    n_per_group_median = if (med_ex > 0) 2 * Z^2 / med_ex^2 else Inf,
-    n_per_group_q90    = if (q90_ex > 0) 2 * Z^2 / q90_ex^2 else Inf,
+    n_per_group_median = if (p_med <= 0.05 && med_ex > 0) 2 * Z^2 / med_ex^2 else NA,
+    n_per_group_q90    = if (p_q90 <= 0.05 && q90_ex > 0) 2 * Z^2 / q90_ex^2 else NA,
     n_fdr05 = sum(p.adjust(c$p, "BH") < 0.05),
     median_resid_sd = median(c$sd),
     median_fold_change = 2^median(fc), null_median_fold_change = 2^mean(c$null_fc[, 1]),
@@ -230,11 +241,15 @@ summarise <- function(c) {
     rho_human_ad = rho, rho_null_95 = rho_null95, p_concordance = p_conc, p_min_attainable = p_min,
     stringsAsFactors = FALSE)
   for (cut in FC_CUTS) out[[sprintf("pct_fold_change_over_%s", cut)]] <- 100 * mean(fc > log2(cut))
+  out$d_median_above_null <- med_ex
+  out$d_q90_above_null <- q90_ex
+  out$p_median_abs_d <- p_med
+  out$p_q90_abs_d <- p_q90
   out
 }
 Sm <- do.call(rbind, lapply(C, summarise))
 
-n_fmt <- function(v) if (!is.finite(v) || v > 10000) ">10000" else sprintf("%.0f", ceiling(v))
+n_fmt <- function(v) if (is.na(v)) "-" else if (v > 10000) ">10000" else sprintf("%.0f", ceiling(v))
 
 cat("\nSTANDARDISED EFFECTS |d| (effect / residual SD of the contrast), observed against shuffled labels\n")
 cat(sprintf("  %-40s %5s %5s | %5s %5s | %7s %7s | %7s\n", "contrast", "med", "null", "q90", "null",
@@ -243,7 +258,8 @@ for (i in seq_len(nrow(Sm))) with(Sm[i, ], cat(sprintf(
   "  %-40s %5.2f %5.2f | %5.2f %5.2f | %7s %7s | %7d\n", contrast, median_abs_d, null_median,
   q90_abs_d, null_q90, n_fmt(n_per_group_median), n_fmt(n_per_group_q90), n_fdr05)))
 cat("\n  N@med and N@q90: per group, 80% power at two-sided alpha 0.05 on one protein, using |d| above",
-    "\n  the null. The unit is the unit of the contrast (animal, organoid of one line, donor line, donor).\n")
+    "\n  the null. The unit is the unit of the contrast (animal, organoid of one line, donor line, donor).",
+    "\n  A dash marks a quantile that is not above shuffled labels at p <= 0.05.\n")
 
 cat("\nFOLD CHANGES (absolute, per protein), observed against shuffled labels\n")
 cat(sprintf("  %-40s %6s %6s | %6s %6s | %7s %7s %7s\n", "contrast", "median", "null", "q90", "null",

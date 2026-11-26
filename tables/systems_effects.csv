@@ -1,0 +1,14 @@
+"system","contrast","unit","n_group1","n_group0","proteins","median_fold_change","null_median_fold_change","q90_fold_change","null_q90_fold_change","median_abs_d","null_median","q90_abs_d","null_q90","n_fdr05","rho_human_ad","rho_null_95","p_concordance","p_min_attainable"
+"Human brain","human: AD vs control","donor",488,182,5808,1.033,1.006,1.103,1.019,0.3533,0.06417,0.7487,0.1456,4256,NA,NA,NA,NA
+"Human brain","human: APOE4 carrier vs not","donor",363,451,5807,1.015,1.005,1.041,1.015,0.1471,0.05048,0.3062,0.1138,2644,NA,NA,NA,NA
+"iAstrocytes","iA: APOE4 carrier vs not","donor line",15,29,8346,1.021,1.027,1.065,1.085,0.1861,0.2501,0.4556,0.5779,0,-0.01335,0.1239,0.8607,0.004975
+"iAstrocytes","iA: pathological AD vs not","donor line",17,27,8346,1.03,1.024,1.087,1.074,0.2786,0.2189,0.5812,0.5102,0,0.02491,0.1314,0.7562,0.004975
+"iAstrocytes","iA: global pathology (per SD)","donor line",44,0,8346,1.017,1.012,1.05,1.037,0.1597,0.1123,0.3467,0.259,0,-0.06769,0.131,0.3731,0.004975
+"Organoids","organoid: 12 vs 8 weeks, within line","organoid",25,25,8504,1.098,1.038,1.278,1.108,0.5226,0.2014,1.222,0.4583,3095,-0.1078,0.2356,0.4726,0.004975
+"Mouse, LOAD2","LOAD2: humanised Abeta, 3-6 mo","animal",13,10,7129,1.026,1.015,1.081,1.048,0.5574,0.3062,1.062,0.7064,0,0.291,0.3193,0.1045,0.004975
+"Mouse, LOAD2","LOAD2: humanised Abeta, 12-14 mo","animal",12,12,7129,1.014,1.016,1.048,1.05,0.2751,0.3001,0.648,0.6885,0,-0.2053,0.337,0.3781,0.004975
+"Mouse, LOAD2","LOAD2: humanised Abeta, 18-19 mo","animal",12,24,7129,1.012,1.015,1.04,1.048,0.201,0.2612,0.5294,0.5929,0,0.06169,0.3097,0.8159,0.004975
+"Mouse, LOAD2","LOAD2: high-fat diet, 18 mo","animal",24,36,7129,1.016,1.011,1.052,1.036,0.2862,0.1953,0.5849,0.4445,26,0.3317,0.3001,0.02488,0.004975
+"Mouse, Peng","Peng: 5xFAD vs WT, 6 mo","animal",5,6,8577,1.05,1.032,1.145,1.099,0.9002,0.5264,2.895,1.363,448,0.4078,0.4016,0.05556,0.01389
+"Mouse, Peng","Peng: 5xFAD vs WT, 12 mo","animal",6,6,8577,1.043,1.026,1.13,1.082,0.924,0.4831,2.76,1.191,1812,0.4414,0.4238,0.02116,0.002646
+"Mouse, Peng","Peng: NLGF vs WT, 18 mo","animal",3,6,8577,1.047,1.029,1.144,1.093,1.152,0.6488,3.387,1.686,700,0.3633,0.3633,0.1,0.05

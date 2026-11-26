@@ -8,13 +8,13 @@
 "donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within sequencing batch",0.5938,0.5197,0.6642,"quartiles across features",100
 "donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within reprogramming batch",0.617,0.5361,0.6864,"quartiles across features",98
 "donor_icc","01 02 03 05","Carcamo-Orive 2017","iPSCs","RNA-seq","donor within RNA harvest date",0.519,0.4167,0.6193,"quartiles across features",41
-"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines in the same TMT batch",0.1209,0.07583,0.1685,"lowest and highest median across pairings",NA
-"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines grouped at random",0.00638,0,0.04824,"lowest and highest median across pairings",NA
-"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines in the same array chip",0.5696,0.5341,0.5834,"lowest and highest median across pairings",NA
-"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines grouped at random",0.006573,0,0.0444,"lowest and highest median across pairings",NA
-"control_icc","01","Kilpinen 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0,0,0.09348,"lowest and highest median across pairings",NA
-"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines in the same sequencing batch",0.2424,0.2183,0.2679,"lowest and highest median across pairings",NA
-"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0,0,0.01563,"lowest and highest median across pairings",NA
+"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines in the same TMT batch",0.1287,0.08469,0.1601,"lowest and highest median across pairings",NA
+"control_icc","01","Mirauta 2020","iPSCs","proteomics","control: unrelated lines grouped at random",0.000161,0,0.04351,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines in the same array chip",0.5615,0.542,0.6116,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","expression array","control: unrelated lines grouped at random",0,0,0.01376,"lowest and highest median across pairings",NA
+"control_icc","01","Kilpinen 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0,0,0.07702,"lowest and highest median across pairings",NA
+"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines in the same sequencing batch",0.2442,0.2189,0.2715,"lowest and highest median across pairings",NA
+"control_icc","01","Carcamo-Orive 2017","iPSCs","RNA-seq","control: unrelated lines grouped at random",0.002238,0,0.03833,"lowest and highest median across pairings",NA
 "line_sd_log2","05","Mirauta 2020","iPSCs","proteomics","log2 abundance",0.2161,0.178,0.2732,"quartiles across features",151
 "line_sd_log2","05","Kilpinen 2017","iPSCs","expression array","log2 intensity",0.3781,0.3122,0.4831,"quartiles across features",232
 "line_sd_log2","05","Kilpinen 2017","iPSCs","RNA-seq","log2 TPM",0.4042,0.3187,0.517,"quartiles across features",129

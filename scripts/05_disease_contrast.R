@@ -452,58 +452,84 @@ dev.off()
 
 cat("\n=== PART G: Fold-change anchoring ===\n\n")
 
-LINE_SD_LOG2 <- 0.216
+specs <- read.csv("tables/empirical_specs.csv", stringsAsFactors = FALSE)
+sd_rows <- specs %>%
+  filter(parameter == "line_sd_log2",
+         dataset == "Mirauta 2020" |
+           cell_type %in% c("macrophages, naive", "cardiomyocytes, untreated", "sensory neurons")) %>%
+  arrange(value)
+LINE_SDS <- setNames(sd_rows$value,
+                     sprintf("%s, %s (SD %.2f)", sub(",.*$", "", sd_rows$cell_type),
+                             ifelse(sd_rows$assay == "proteomics", "protein", "RNA"),
+                             sd_rows$value))
 FOLD_CHANGES <- c(1.05, 1.1, 1.2, 1.5)
 ICCS_G <- c(0.20, 0.50)
 N_GRID_G <- c(2, 3, 5, 10, 20, 50, 100)
 
-fc_to_sd <- function(fc, line_sd = LINE_SD_LOG2) log2(fc) / line_sd
-sd_to_fc <- function(d, line_sd = LINE_SD_LOG2) 2^(d * line_sd)
+fc_to_sd <- function(fc, line_sd) log2(fc) / line_sd
+sd_to_fc <- function(d, line_sd) 2^(d * line_sd)
+sd_label <- function(line_sd) factor(names(LINE_SDS)[match(line_sd, LINE_SDS)],
+                                     levels = names(LINE_SDS))
 
 palette_fc <- c("1.05" = "#FDAE6B", "1.1" = "#FD8D3C",
                 "1.2" = "#D94801", "1.5" = "#5C1F02")
 
-fc_grid <- expand.grid(icc = ICCS_G, n = N_GRID_G, fc = FOLD_CHANGES) %>%
+fc_grid <- expand.grid(icc = ICCS_G, n = N_GRID_G, fc = FOLD_CHANGES,
+                       line_sd = unname(LINE_SDS)) %>%
   mutate(
-    delta = fc_to_sd(fc),
+    delta = fc_to_sd(fc, line_sd),
     power = mapply(power_disease, n = n, k = K_REPS, icc = icc, delta = delta),
+    cells = sd_label(line_sd),
     icc_label = factor(paste0("ICC = ", icc * 100, "%"),
                        levels = paste0("ICC = ", ICCS_G * 100, "%")),
     fc_label = factor(as.character(fc), levels = as.character(FOLD_CHANGES))
   )
 
-cat(sprintf("Median SD across lines = %.3f log2 units, k = %d\n\n", LINE_SD_LOG2, K_REPS))
-cat(sprintf("  %-6s %-8s %-6s %s  %s\n", "FC", "SD", "ICC",
-            paste(sprintf("n=%-4d", c(3, 5, 10, 20)), collapse = " "),
-            "donors/group for 80%"))
-for (f in FOLD_CHANGES) {
-  for (ic in ICCS_G) {
-    r <- fc_grid[fc_grid$fc == f & fc_grid$icc == ic & fc_grid$n %in% c(3, 5, 10, 20), ]
-    cat(sprintf("  %-6g %-8.2f %-6s %s  %d\n", f, fc_to_sd(f), paste0(ic * 100, "%"),
-                paste(sprintf("%5.1f ", r$power * 100), collapse = " "),
-                donors_required(K_REPS, ic, fc_to_sd(f))))
+for (s in LINE_SDS) {
+  cat(sprintf("%s: median SD across lines = %.3f log2 units, k = %d\n\n",
+              as.character(sd_label(s)), s, K_REPS))
+  cat(sprintf("  %-6s %-8s %-6s %s  %s\n", "FC", "SD", "ICC",
+              paste(sprintf("n=%-4d", c(3, 5, 10, 20)), collapse = " "),
+              "donors/group for 80%"))
+  for (f in FOLD_CHANGES) {
+    for (ic in ICCS_G) {
+      r <- fc_grid[fc_grid$line_sd == s & fc_grid$fc == f & fc_grid$icc == ic &
+                     fc_grid$n %in% c(3, 5, 10, 20), ]
+      cat(sprintf("  %-6g %-8.2f %-6s %s  %d\n", f, fc_to_sd(f, s), paste0(ic * 100, "%"),
+                  paste(sprintf("%5.1f ", r$power * 100), collapse = " "),
+                  donors_required(K_REPS, ic, fc_to_sd(f, s))))
+    }
   }
+  cat("\n")
 }
 
 cat("\nSmallest fold change detected with 80% power\n\n")
-fc_threshold <- expand.grid(icc = ICCS_G, n = c(3, 5, 10, 20)) %>%
+fc_threshold <- expand.grid(icc = ICCS_G, n = c(3, 5, 10, 20),
+                            line_sd = unname(LINE_SDS)) %>%
   mutate(mde = mapply(min_detectable_effect, n = n, k = K_REPS, icc = icc),
-         fc_min = sd_to_fc(mde))
-for (nn in c(3, 5, 10, 20)) {
-  r <- fc_threshold[fc_threshold$n == nn, ]
-  cat(sprintf("  %2d donors/group: %s\n", nn,
-              paste(sprintf("FC %.2f (ICC %.0f%%)", r$fc_min, r$icc * 100), collapse = ", ")))
+         fc_min = sd_to_fc(mde, line_sd),
+         cells = sd_label(line_sd))
+for (s in LINE_SDS) {
+  cat(sprintf("%s\n", as.character(sd_label(s))))
+  for (nn in c(3, 5, 10, 20)) {
+    r <- fc_threshold[fc_threshold$line_sd == s & fc_threshold$n == nn, ]
+    cat(sprintf("  %2d donors/group: %s\n", nn,
+                paste(sprintf("FC %.2f (ICC %.0f%%)", r$fc_min, r$icc * 100), collapse = ", ")))
+  }
 }
 
 # Exaggeration of significant results at these fold changes
-fc_mc_grid <- expand.grid(icc = ICCS_G, n = c(2, 3, 5, 10, 20, 50), fc = FOLD_CHANGES)
+fc_mc_grid <- expand.grid(icc = ICCS_G, n = c(2, 3, 5, 10, 20, 50), fc = FOLD_CHANGES,
+                          line_sd = unname(LINE_SDS))
 fc_exag <- do.call(rbind, lapply(seq_len(nrow(fc_mc_grid)), function(i) {
   r <- simulate_contrast(fc_mc_grid$n[i], K_REPS, fc_mc_grid$icc[i],
-                         fc_to_sd(fc_mc_grid$fc[i]))
+                         fc_to_sd(fc_mc_grid$fc[i], fc_mc_grid$line_sd[i]))
   r$fc <- fc_mc_grid$fc[i]
+  r$line_sd <- fc_mc_grid$line_sd[i]
   r
 })) %>%
   mutate(
+    cells = sd_label(line_sd),
     # the fold change a significant study reports, at the median exaggeration
     fc_reported = 2^(exaggeration * log2(fc)),
     icc_label = factor(paste0("ICC = ", icc * 100, "%"),
@@ -512,13 +538,13 @@ fc_exag <- do.call(rbind, lapply(seq_len(nrow(fc_mc_grid)), function(i) {
   )
 
 cat("\nAmong significant results: exaggeration and the fold change reported\n\n")
-cat(sprintf("  %-6s %-6s %-12s %8s %14s %14s\n",
-            "FC", "ICC", "donors/group", "power", "exaggeration", "reported FC"))
+cat(sprintf("  %-28s %-6s %-6s %-12s %8s %14s %14s\n",
+            "cells", "FC", "ICC", "donors/group", "power", "exaggeration", "reported FC"))
 for (i in seq_len(nrow(fc_exag))) {
   r <- fc_exag[i, ]
   if (r$n %in% c(3, 5, 10, 20)) {
-    cat(sprintf("  %-6g %-6s %-12d %7.1f%% %13.2fx %14.2f\n",
-                r$fc, paste0(r$icc * 100, "%"), r$n, r$power_mc * 100,
+    cat(sprintf("  %-28s %-6g %-6s %-12d %7.1f%% %13.2fx %14.2f\n",
+                as.character(r$cells), r$fc, paste0(r$icc * 100, "%"), r$n, r$power_mc * 100,
                 r$exaggeration, r$fc_reported))
   }
 }
@@ -529,7 +555,7 @@ pD5 <- ggplot(fc_grid, aes(x = n, y = power, color = fc_label, group = fc_label)
   geom_hline(yintercept = 0.80, linetype = "dashed", color = "grey50") +
   geom_line(linewidth = 1) +
   geom_point(size = 2.2) +
-  facet_wrap(~icc_label, nrow = 1) +
+  facet_grid(cells ~ icc_label, labeller = labeller(cells = label_wrap_gen(18))) +
   scale_x_continuous(trans = "log10", breaks = N_GRID_G) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
   scale_color_manual(values = palette_fc) +
@@ -547,7 +573,7 @@ pD6 <- ggplot(fc_exag, aes(x = n, y = exaggeration, color = fc_label, group = fc
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
   geom_line(linewidth = 1) +
   geom_point(size = 2.2) +
-  facet_wrap(~icc_label, nrow = 1) +
+  facet_grid(cells ~ icc_label, labeller = labeller(cells = label_wrap_gen(18))) +
   scale_x_continuous(trans = "log10", breaks = c(2, 3, 5, 10, 20, 50)) +
   scale_y_continuous(limits = c(0.9, NA), breaks = seq(1, 10, 1)) +
   scale_color_manual(values = palette_fc) +
@@ -560,11 +586,11 @@ pD6 <- ggplot(fc_exag, aes(x = n, y = exaggeration, color = fc_label, group = fc
   theme_pub
 
 
-tiff("pics/figD_power_FC.tiff", units = "in", res = 300, width = 7, height = 5)
+tiff("pics/figD_power_FC.tiff", units = "in", res = 300, width = 8, height = 11)
 print(pD5)
 dev.off()
 
-tiff("pics/figD_exaggeration.tiff", units = "in", res = 300, width = 7, height = 5)
+tiff("pics/figD_exaggeration.tiff", units = "in", res = 300, width = 8, height = 11)
 print(pD6)
 dev.off()
 
@@ -573,9 +599,9 @@ dev.off()
 # FIGURES AND TABLES
 ################################################################################
 
-write.csv(fc_grid %>% select(icc, n, fc, delta, power),
+write.csv(fc_grid %>% select(cells, line_sd, icc, n, fc, delta, power),
           "tables/tableE5_power_by_fold_change.csv", row.names = FALSE)
-write.csv(fc_exag %>% select(icc, n, fc, power_mc, exaggeration, sign_error, fc_reported),
+write.csv(fc_exag %>% select(cells, line_sd, icc, n, fc, power_mc, exaggeration, sign_error, fc_reported),
           "tables/tableE6_exaggeration_by_fold_change.csv", row.names = FALSE)
 
 

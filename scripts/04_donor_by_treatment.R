@@ -182,6 +182,23 @@ param_grid <- expand.grid(
   sigma_donor = 1.0,
   sigma_res = 1.0
 )
+param_grid$source <- "assumed"
+
+specs <- read.csv("tables/empirical_specs.csv", stringsAsFactors = FALSE)
+measured <- specs %>%
+  filter(feeds == "04", dataset == "Alasoo 2018",
+         grepl("within stimulation date", condition),
+         grepl("<1.1|1.1-1.2", condition),
+         parameter %in% c("beta_resid", "sigma_int_resid")) %>%
+  select(condition, parameter, value) %>%
+  tidyr::pivot_wider(names_from = parameter, values_from = value) %>%
+  transmute(source = sub(", batch within stimulation date, mean fold change ", ", FC ", condition),
+            beta = beta_resid,
+            sigma_int = sigma_int_resid)
+measured_grid <- merge(data.frame(a = unique(param_grid$a), k = 6,
+                                  sigma_donor = 1.0, sigma_res = 1.0),
+                       measured)
+param_grid <- rbind(param_grid, measured_grid[, names(param_grid)])
 n_sims <- 5000
 
 cat("=== Running", nrow(param_grid), "parameter cells ===\n")
@@ -199,6 +216,7 @@ for (i in seq_len(nrow(param_grid))) {
                          n_sims = n_sims)
   
   rows[[i]] <- data.frame(
+    source = p$source,
     a = p$a,
     k = p$k,
     beta = p$beta,
@@ -221,9 +239,13 @@ for (i in seq_len(nrow(param_grid))) {
     }
   )
 }
-summary_tbl <- tibble::as_tibble(bind_rows(rows))
+all_tbl <- tibble::as_tibble(bind_rows(rows))
+summary_tbl <- all_tbl %>% filter(source == "assumed") %>% select(-source)
+measured_tbl <- all_tbl %>% filter(source != "assumed")
 print(summary_tbl, n = Inf, width = Inf)
+print(measured_tbl, n = Inf, width = Inf)
 write.csv(summary_tbl, "tables/unanimity_summary.csv")
+write.csv(measured_tbl, "tables/unanimity_measured.csv", row.names = FALSE)
 
 # -----------------------------------------------------------------------------
 # Direction of response: unanimity against the true share of opposite responders
@@ -278,7 +300,7 @@ fig_main <- ggplot(summary_tbl,
        x = "Number of donors (a)", y = "Power",
        colour = expression(sigma[int]), linetype = expression(beta))
 
-tiff("../pics/figI1.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figI1.tiff", units = "in", res = 300, width = 6, height = 5)
 print(fig_main)
 dev.off()
 
@@ -295,7 +317,7 @@ fig_het <- summary_tbl %>%
        x = "Number of donors (a)", y = "Power (F)",
        colour = expression(sigma[int]), linetype = expression(beta))
 
-tiff("../pics/figI2.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figI2.tiff", units = "in", res = 300, width = 6, height = 5)
 print(fig_het)
 dev.off()
 
@@ -312,7 +334,7 @@ fig_zero <- summary_tbl %>%
        colour = expression(sigma[int]), linetype = expression(beta))
 
 
-tiff("../pics/figI3.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figI3.tiff", units = "in", res = 300, width = 6, height = 5)
 print(fig_zero)
 dev.off()
 
@@ -326,7 +348,7 @@ fig_sign <- summary_tbl %>%
   labs(title = "Probability all sampled donors respond in the same direction",
        x = "Number of donors (a)", y = "P(all a donors same sign)",
        colour = expression(sigma[int]), linetype = expression(beta))
-tiff("../pics/figI4.tiff", units = "in", res = 300, width = 6, height = 5)
+tiff("pics/figI4.tiff", units = "in", res = 300, width = 6, height = 5)
 print(fig_sign)
 dev.off()
 
@@ -355,6 +377,28 @@ fig_sign_new <- ggplot(sign_fig_data,
   theme(legend.position = "right")
 tiff("pics/figI4_new.tiff", units = "in", res = 300, width = 6, height = 5)
 print(fig_sign_new)
+dev.off()
+
+measured_fig_data <- measured_tbl %>%
+  mutate(label = sprintf("%s (%.0f%% opposite)", source, 100 * frac_opposite)) %>%
+  arrange(frac_opposite)
+measured_fig_data$label <- factor(measured_fig_data$label,
+                                  levels = unique(measured_fig_data$label))
+
+fig_sign_measured <- ggplot(measured_fig_data,
+                            aes(x = a, y = pct_all_same, colour = label, group = label)) +
+  annotate("rect", xmin = 3, xmax = 5, ymin = 0, ymax = 1,
+           fill = "grey50", alpha = 0.12) +
+  geom_line(linewidth = 0.9) + geom_point(size = 2) +
+  scale_x_continuous(trans = "log10", breaks = unique(measured_tbl$a)) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_colour_manual(values = c("#FDAE6B", "#FD8D3C", "#D94801", "#5C1F02")) +
+  labs(title = "Probability all sampled donors respond in the same direction",
+       x = "Number of donors (log scale)", y = "P(all donors have same sign)",
+       colour = "Measured response\n(Alasoo 2018, macrophages)") +
+  theme(legend.position = "right")
+tiff("pics/figI4_measured.tiff", units = "in", res = 300, width = 7.5, height = 5)
+print(fig_sign_measured)
 dev.off()
 
 

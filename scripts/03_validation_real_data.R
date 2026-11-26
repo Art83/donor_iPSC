@@ -32,8 +32,8 @@ library(scales)
 
 set.seed(42)
 
-META_FILE <- "elife_data/elife-57390-fig1-data1-v3.xls"   # sample metadata
-EXPR_FILE <- "elife_data/elife-57390-fig1-data2-v3.xls"   # expression matrix
+META_FILE <- "data/Mirauta/elife-57390-fig1-data1-v3.xls"   # sample metadata
+EXPR_FILE <- "data/Mirauta/elife-57390-fig1-data2-v3.xls"   # expression matrix
 
 SUBSAMPLE_POOL <- "replicated"   # "replicated" (51 two-line donors) or "all" (151)
 N_CONTROL_PAIRINGS <- 20         # random pairings for the batch negative control
